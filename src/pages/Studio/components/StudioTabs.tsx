@@ -1,0 +1,43 @@
+import { BarChart2, Share2, History } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type TabType = 'overview' | 'visualization' | 'transactions';
+
+interface StudioTabsProps {
+  activeTab: TabType;
+  onTabChange: (tab: TabType) => void;
+}
+
+const tabs = [
+  { id: 'overview', label: 'Overview', icon: BarChart2 },
+  { id: 'visualization', label: 'Visualization', icon: Share2 },
+  { id: 'transactions', label: 'Transactions', icon: History }
+] as const;
+
+export const StudioTabs = ({ activeTab, onTabChange }: StudioTabsProps) => {
+  return (
+    <div className="border-b">
+      <div className="container max-w-screen-2xl mx-auto px-4">
+        <Tabs value={activeTab} onValueChange={onTabChange as (value: string) => void}>
+          <TabsList className="h-12 mt-20">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger 
+                  key={tab.id} 
+                  value={tab.id}
+                  className="flex items-center gap-2 px-4"
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+export default StudioTabs;

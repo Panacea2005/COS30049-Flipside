@@ -1,0 +1,33 @@
+import { Container } from '../../../../components/layout/Container';
+import { FormulaSteps } from './FormulaSteps';
+import { GrowthBanner } from './GrowthBanner';
+
+export const GrowthFormula = () => {
+  return (
+    <section className="py-32">
+      <Container>
+        <div className="mb-16">
+          <span className="text-blue-400 text-sm">How it works</span>
+          <h2 className="text-[6rem] leading-none font-light mt-4">
+            THE FLIDE AI
+            <br />
+            CONTRACT 
+            <br />
+            OPTIMIZATION
+            <br />
+            FORMULA
+          </h2>
+        </div>
+
+        <div className="flex justify-between items-start mb-32">
+          <p className="text-2xl max-w-2xl font-light">
+            We blend data science and community to help our partners achieve substantial market cap outperformance.
+          </p>
+        </div>
+
+        <FormulaSteps />
+        <GrowthBanner />
+      </Container>
+    </section>
+  );
+};

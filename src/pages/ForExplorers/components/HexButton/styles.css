@@ -1,0 +1,41 @@
+.hex-button {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, #FFA500, #FF4500); /* Gradient background */
+  clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+  border: 4px solid;
+  border-image: linear-gradient(135deg, #FFA500, #FF4500) 1;
+  border-radius: 10px; /* Rounded corners */
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.hex-button:hover:not(.locked) {
+  background: linear-gradient(135deg, #FF7F50, #FF6347); /* Gradient background on hover */
+  border-image: linear-gradient(135deg, #FF7F50, #FF6347) 1;
+}
+
+.hex-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+  padding: 1rem;
+}
+
+.hex-button.locked {
+  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.tag {
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
