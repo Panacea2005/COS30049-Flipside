@@ -25,11 +25,11 @@ export const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-blue-700 relative overflow-hidden">
       <div className="absolute inset-0 w-full h-full bg-wave-pattern opacity-50"></div>
       <div className="w-4/5 max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden flex flex-col sm:flex-row">
-        <div className="w-full sm:w-1/2 p-8">
+        <div className="w-full sm:w-1/2 p-8 relative">
           <div className="absolute top-4 left-4">
-            <img src="/flipside-logo.svg" alt="Logo" className="h-12" />
+            <img src="/flipside-logo.svg" alt="Logo" className="h-10" />
           </div>
-          <h1 className="text-4xl font-light mb-8 text-center">Log In</h1>
+          <h1 className="text-4xl font-light mb-8 text-center mt-16">Log In</h1>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm text-gray-600 mb-2">Email</label>
