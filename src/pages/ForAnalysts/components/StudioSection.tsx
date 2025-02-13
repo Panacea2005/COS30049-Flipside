@@ -1,7 +1,7 @@
 export const StudioSection = () => {
   return (
     <section className="py-32">
-      <h2 className="text-[8rem] leading-none font-light mb-32">
+      <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-32">
         DATA STARTS
         <br />
         IN THE
@@ -9,9 +9,9 @@ export const StudioSection = () => {
         STUDIO
       </h2>
 
-      <div className="grid grid-cols-2 gap-16">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-16">
         {/* About Studio */}
-        <div className="col-span-2">
+        <div className="col-span-1 sm:col-span-2">
           <span className="text-violet-600 text-sm">About Studio</span>
           <p className="text-2xl mt-4">
             Unlock blockchain intelligence with our three core features:
@@ -61,7 +61,7 @@ export const StudioSection = () => {
         </div>
 
         {/* Share to Earn */}
-        <div className="col-span-2">
+        <div className="col-span-1 sm:col-span-2">
           <div className="bg-gray-50 rounded-2xl p-8">
             <div className="mb-8">
               <code className="text-pink-500">Full Transaction History</code>

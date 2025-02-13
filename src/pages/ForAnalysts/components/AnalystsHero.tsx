@@ -7,10 +7,10 @@ export const AnalystsHero = () => {
       <ImpactGraphic />
       <Container className="relative z-10">
         <div className="max-w-3xl">
-          <h1 className="text-[8rem] leading-none font-light mb-8">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-8">
             Discover data power
           </h1>
-          <p className="text-xl text-gray-600 mb-12 max-w-xl">
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-12 max-w-xl">
             Gain deep insights with AI-powered analytics, interactive
             dashboards, and transaction history tracking. Explore address
             analytics, and onchain activity—all in one

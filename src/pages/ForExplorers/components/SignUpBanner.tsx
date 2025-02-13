@@ -17,8 +17,8 @@ export const SignUpBanner = () => {
         </div>
       </div>
 
-      <div className="relative p-16">
-        <h2 className="text-4xl font-light text-white mb-8">
+      <div className="relative p-8 sm:p-16">
+        <h2 className="text-3xl sm:text-4xl font-light text-white mb-8">
           YOUR EARNING
           <br />
           JOURNEY IS ABOUT

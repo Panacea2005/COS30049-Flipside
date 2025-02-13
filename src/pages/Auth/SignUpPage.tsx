@@ -24,9 +24,9 @@ export const SignUpPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-600 to-blue-700 relative overflow-hidden">
       <div className="absolute inset-0 w-full h-full bg-wave-pattern opacity-50"></div>
-      <div className="w-4/5 max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden flex">
-        <div className="w-1/2 p-8">
-          <div className="abosolute top-4 left-4">
+      <div className="w-4/5 max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden flex flex-col sm:flex-row">
+        <div className="w-full sm:w-1/2 p-8">
+          <div className="absolute top-4 left-4">
             <img src="/flipside-logo.svg" alt="Logo" className="h-12" />
           </div>
           <h1 className="text-4xl font-light mb-8 text-center">Sign Up</h1>
@@ -42,9 +42,7 @@ export const SignUpPage = () => {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-2">
-                Password
-              </label>
+              <label className="block text-sm text-gray-600 mb-2">Password</label>
               <input
                 type="password"
                 value={password}
@@ -72,7 +70,7 @@ export const SignUpPage = () => {
           </form>
         </div>
         <div
-          className="w-1/2 bg-cover bg-center"
+          className="hidden sm:block sm:w-1/2 bg-cover bg-center"
           style={{ backgroundImage: "url(/default-banner.png)" }}
         ></div>
       </div>

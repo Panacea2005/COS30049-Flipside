@@ -8,7 +8,7 @@ export const GrowthFormula = () => {
       <Container>
         <div className="mb-16">
           <span className="text-blue-400 text-sm">How it works</span>
-          <h2 className="text-[6rem] leading-none font-light mt-4">
+          <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mt-4">
             THE FLIDE AI
             <br />
             CONTRACT 
@@ -19,8 +19,8 @@ export const GrowthFormula = () => {
           </h2>
         </div>
 
-        <div className="flex justify-between items-start mb-32">
-          <p className="text-2xl max-w-2xl font-light">
+        <div className="flex flex-col sm:flex-row justify-between items-start mb-32">
+          <p className="text-xl sm:text-2xl max-w-2xl font-light">
             We blend data science and community to help our partners achieve substantial market cap outperformance.
           </p>
         </div>

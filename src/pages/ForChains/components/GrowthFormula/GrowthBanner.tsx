@@ -17,9 +17,9 @@ export const GrowthBanner = () => {
         </div>
       </div>
 
-      <div className="relative p-16">
+      <div className="relative p-8 sm:p-16">
         <div className="max-w-2xl">
-          <h3 className="text-3xl text-white font-light mb-4">
+          <h3 className="text-2xl sm:text-3xl text-white font-light mb-4">
             The path to measurable, sustained growth is just ahead.
             <br />
             Are you ready to begin your ascent?

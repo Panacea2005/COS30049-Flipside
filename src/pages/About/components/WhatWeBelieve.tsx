@@ -37,14 +37,14 @@ export const WhatWeBelieve = () => {
       <Container>
         <div className="mb-16 relative z-10">
           <span className="text-violet-600 text-sm">Our mission</span>
-          <h2 className="text-[8rem] leading-none font-light mt-4">
+          <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mt-4">
             WHAT WE
             <br />
             BELIEVE
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-16 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-16 relative z-10">
           {BELIEFS.map((belief) => (
             <div
               key={belief.title}

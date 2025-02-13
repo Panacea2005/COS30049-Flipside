@@ -14,7 +14,7 @@ export const ChainGraphic = () => {
         
         {/* 3D Chain graphic */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="w-96 h-96 relative">
+          <div className="w-48 h-48 sm:w-96 sm:h-96 relative">
             <div className="absolute inset-0 bg-gradient-to-tr from-cyan-400 to-blue-600 rounded-lg transform rotate-45 skew-y-12">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div

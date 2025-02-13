@@ -7,7 +7,7 @@ const links = [
 
 export const SettingsSidebar = () => {
   return (
-    <nav className="w-64 border-r h-full">
+    <nav className="w-full sm:w-64 border-r h-full">
       <div className="p-4 mt-16">
         <h2 className="text-lg font-medium">Settings</h2>
       </div>

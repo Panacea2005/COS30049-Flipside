@@ -5,7 +5,7 @@ export const QuestsHero = () => {
     <div className="pt-32 pb-16">
       <Container>
         <div className="max-w-4xl">
-          <h1 className="text-[8rem] leading-none font-light tracking-tight">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light tracking-tight">
             EXPLORE
             <br />
             TRENDING

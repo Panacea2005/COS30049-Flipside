@@ -34,7 +34,7 @@ export const ValueProposition = () => {
   return (
     <section className="py-32 bg-white">
       <Container>
-        <h2 className="text-[6rem] leading-none font-light mb-24 text-gray-900">
+        <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-24 text-gray-900">
           TURN RAW
           <br />
           DATA INTO
@@ -42,15 +42,15 @@ export const ValueProposition = () => {
           REAL VALUE
         </h2>
 
-        <div className="space-y-32">
+        <div className="space-y-16 sm:space-y-32">
           {VALUE_PROPS.map((prop, i) => (
-            <div key={i} className="grid grid-cols-2 gap-16 items-center">
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-16 items-center">
               <div className={i % 2 === 0 ? 'order-1' : 'order-2'}>
                 <img src={prop.image} alt="" className="w-full rounded-lg" />
               </div>
               <div className={i % 2 === 0 ? 'order-2' : 'order-1'}>
                 <span className="text-blue-600 text-sm">{prop.label}</span>
-                <p className="text-2xl font-light mt-4 mb-8 text-gray-900">{prop.title}</p>
+                <p className="text-xl sm:text-2xl font-light mt-4 mb-8 text-gray-900">{prop.title}</p>
                 {prop.cta && (
                   <a 
                     href={prop.cta.href}

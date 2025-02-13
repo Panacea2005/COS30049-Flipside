@@ -7,10 +7,12 @@ export const ChainsHero = () => {
       <ChainGraphic />
       <Container className="relative z-10">
         <div className="max-w-3xl">
-          <h1 className="text-[8rem] leading-none font-light mb-8">
-            Ignite blockchain
+          <h1 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-8">
+            Ignite 
+            <br />
+            blockchain
           </h1>
-          <p className="text-xl text-gray-400 mb-12 max-w-xl">
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-400 mb-12 max-w-xl">
             Flide AI transforms smart contract security, analytics, and onchain
             growth with powerful AI-driven insights. We help blockchains
             optimize contracts, mitigate risks, and activate the right users for

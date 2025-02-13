@@ -63,6 +63,7 @@ export const FormulaSteps = () => {
                 marginBottom: '2rem',
                 maxWidth: '40rem',
                 marginLeft: 'auto',
+                marginRight: 'auto',
                 color: 'white',
               }}
             >

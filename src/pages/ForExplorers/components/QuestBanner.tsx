@@ -16,8 +16,8 @@ export const QuestBanner = () => {
         </div>
       </div>
 
-      <div className="relative p-16">
-        <h2 className="text-3xl font-light text-white mb-4">
+      <div className="relative p-8 sm:p-16">
+        <h2 className="text-3xl sm:text-4xl font-light text-white mb-4">
           Embark on an epic onchain odyssey.
           <br />
           Ready to claim your first reward?

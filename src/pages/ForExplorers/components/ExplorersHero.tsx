@@ -7,11 +7,13 @@ export const ExplorersHero = () => {
       <WalletGraphic />
       <Container className="relative z-10">
         <div className="max-w-3xl">
-          <h1 className="text-[8rem] leading-none font-light mb-8">
-            Power of Analytics
+          <h1 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-8">
+            Power of 
+            <br />
+            Analytics
           </h1>
-          <p className="text-xl text-white mb-12 max-w-xl">
-          Blockchain can be complex—but we make it simple. Our AI-powered tools help you explore transactions, understand smart contracts, and uncover insights without needing deep technical knowledge.
+          <p className="text-lg sm:text-xl md:text-2xl text-white mb-12 max-w-xl">
+            Blockchain can be complex—but we make it simple. Our AI-powered tools help you explore transactions, understand smart contracts, and uncover insights without needing deep technical knowledge.
           </p>
           <a 
             href="/studio" 

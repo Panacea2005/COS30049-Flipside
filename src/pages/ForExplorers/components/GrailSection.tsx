@@ -2,7 +2,7 @@ export const GrailSection = () => {
   return (
     <div className="py-32">
       <div className="mb-16">
-        <h2 className="text-[8rem] leading-none font-light">
+        <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light">
           <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-pink-500 text-transparent bg-clip-text">
             ENTER, 
             <br />
@@ -14,11 +14,11 @@ export const GrailSection = () => {
         </button>
       </div>
 
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row justify-between items-start">
         <p className="text-2xl max-w-2xl">
           Dive into real blockchain transactions, explore smart contract behavior, and gain valuable insights using AI-driven analytics.
         </p>
-        <div className="flex items-center space-x-8">
+        <div className="flex items-center space-x-8 mt-8 sm:mt-0">
           <div className="flex items-center space-x-2">
             <div className="flex -space-x-2">
               <img src="/PM.png" alt="" className="w-8 h-8 rounded-full border-2 border-black" />

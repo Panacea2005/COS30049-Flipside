@@ -36,10 +36,10 @@ export const HowItWorks = () => {
       </div>
       <div className="relative z-10">
         <div className="mb-16">
-          <h2 className="text-[8rem] leading-none font-light">
+          <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light">
             YOUR  
             <br />
-              JOURNEY
+            JOURNEY
             <br />
             <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-pink-500 text-transparent bg-clip-text">
               INTO BLOCKCHAIN ANALYTICS
@@ -58,7 +58,7 @@ export const HowItWorks = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
           {STEPS.map((step, index) => (
             <motion.div
               key={step.number}

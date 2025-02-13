@@ -5,7 +5,7 @@ export const DevSection = () => {
     <section className="py-32 bg-black text-white overflow-hidden">
       <Container>
         <div className="relative">
-          <h2 className="text-[8rem] leading-none font-light mb-32">
+          <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-32">
             GOOD DEVS
             <br />
             USE GOOD
@@ -30,15 +30,12 @@ export const DevSection = () => {
 
             {/* Content overlays */}
             <div className="relative z-10">
-              <div className="bg-violet-900/80 backdrop-blur-sm rounded-lg p-8">
-                <div className="text-l mb-4">
-                  Visualizing blockchain interactions is critical for developers, researchers, and analysts. Use our graph-based analytics and real-time dashboards to stay ahead of the curve.
-                </div>
+              <div className="bg-violet-900/80 backdrop-blur-sm rounded-lg p-8 hover:bg-violet-800 transition duration-300 ease-in-out">
                 <div className="rounded-lg overflow-hidden mb-4">
                   <img src="./graph.png" alt="Blockchain Visualization" className="w-full h-auto" />
                 </div>
                 <a href="/studio" className="inline-flex items-center mt-4 text-white/80 hover:text-white">
-                  <span>Explore Visual Analytics</span>
+                  <span>Explore Visualization Graph</span>
                   <span className="ml-2">→</span>
                 </a>
               </div>

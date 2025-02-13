@@ -14,10 +14,12 @@ export const ForChainsPage = () => {
 
       <div className="bg-white">
         <Partners />
+        <Container>
+          <ValueProposition />
+        </Container>
       </div>
 
       <div className="bg-black text-white">
-        <ValueProposition />
         <Container>
           <GrowthFormula />
         </Container>

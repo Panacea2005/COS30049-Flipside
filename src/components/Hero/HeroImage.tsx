@@ -2,7 +2,7 @@ export const HeroImage = () => {
   return (
     <div className="absolute inset-0 w-full h-full">
       <div className="absolute inset-0 grid place-items-center">
-        <div className="relative w-96 h-96">
+        <div className="relative w-48 h-48 sm:w-96 sm:h-96">
           <img
             src="/hero-image.svg"
             alt="Flipside Logo 3D"

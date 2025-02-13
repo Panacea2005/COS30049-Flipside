@@ -14,7 +14,7 @@ export const WalletGraphic = () => {
         
         {/* 3D Wallet graphic */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="w-[600px] h-[600px] relative">
+          <div className="w-48 h-48 sm:w-[600px] sm:h-[600px] relative">
             <div className="absolute inset-0">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
