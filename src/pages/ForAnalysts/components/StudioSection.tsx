@@ -6,7 +6,9 @@ export const StudioSection = () => {
         <br />
         IN THE
         <br />
-        STUDIO
+        <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 text-transparent bg-clip-text">
+          STUDIO
+        </span>
       </h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-16">

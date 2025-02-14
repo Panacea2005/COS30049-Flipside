@@ -18,7 +18,7 @@ export const OverviewPage = () => {
         <BiggestTransactionsChart />
       </div>
 
-      <div className="bg-white p-8 rounded-lg shadow-md flex gap-4"> {/* Increased padding and added flex layout */}
+      <div className="bg-white p-8 rounded-lg shadow-md flex flex-col lg:flex-row gap-4"> {/* Increased padding and added flex layout */}
         <div className="flex-1 min-w-[300px]">
           <DistributionChart />
         </div>

@@ -1,12 +1,12 @@
 import { Groq } from 'groq-sdk';
 
-// Define the interfaces first
 interface SecurityIssue {
   type: string;
   description: string;
   location?: string;
   impact: string;
   recommendation: string;
+  codeExample?: string;
 }
 
 interface Optimization {
@@ -14,6 +14,7 @@ interface Optimization {
   description: string;
   suggestion: string;
   impact: string;
+  codeExample?: string;
 }
 
 export interface ContractAnalysis {
@@ -27,10 +28,14 @@ export interface ContractAnalysis {
   low: SecurityIssue[];
   informational: SecurityIssue[];
   optimizations: Optimization[];
+  modificationSuggestions?: string;
+  summary?: string;
+  rawAnalysis?: string; // Store complete analysis including thinking process
 }
 
 export class ContractAnalyzer {
   private groq: Groq;
+  private lastAnalysis: ContractAnalysis | null = null;
 
   constructor() {
     this.groq = new Groq({
@@ -43,26 +48,34 @@ export class ContractAnalyzer {
     const startTime = Date.now();
     
     try {
-      // Prepare system prompt for contract analysis
-      const systemPrompt = `You are an expert Move smart contract security auditor. Analyze the contract and provide a detailed security assessment.
-      Format your response as a JSON object with the following structure:
-      {
-        "securityScore": number,
-        "critical": array of issues,
-        "high": array of issues,
-        "medium": array of issues,
-        "low": array of issues,
-        "informational": array of issues,
-        "optimizations": array of optimization suggestions
-      }
-      where each issue has: type, description, impact, and recommendation fields.`;
+      console.log("Starting contract analysis...");
+      const systemMessage = {
+        role: "system" as const,
+        content: `You are an expert Move smart contract security auditor. Analyze the provided contract thoroughly.
+First, share your thinking process as you analyze the contract.
+Then, provide a detailed analysis including:
+1. Security vulnerabilities with specific code locations
+2. Impact assessment for each issue
+3. Recommendations for fixes
+4. Example code showing how to fix critical issues
 
-      // Send analysis request to Groq
+Finally, include a JSON summary in this format:
+{
+  "securityScore": number,
+  "critical": [], "high": [], "medium": [], "low": [], "informational": [],
+  "optimizations": []
+}
+
+Each issue should include: type, description, location, impact, recommendation, and codeExample.`
+      };
+
+      const userMessage = {
+        role: "user" as const,
+        content: `Analyze this Move smart contract for security issues, best practices, and optimizations:\n\n${code}`
+      };
+
       const completion = await this.groq.chat.completions.create({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Analyze this Move smart contract:\n\n${code}` }
-        ],
+        messages: [systemMessage, userMessage],
         model: model,
       });
 
@@ -71,28 +84,42 @@ export class ContractAnalyzer {
         throw new Error('No analysis response received');
       }
 
-      // Parse the AI response
-      const analysisResult = JSON.parse(analysisResponse);
+      // Store the complete analysis including thinking process
+      const rawAnalysis = analysisResponse;
 
-      // Calculate actual metrics
+      // Extract JSON data from the response
+      const jsonMatch = analysisResponse.match(/```json\n([\s\S]*?)\n```/);
+      let analysisResult;
+      
+      if (jsonMatch) {
+        try {
+          analysisResult = JSON.parse(jsonMatch[1]);
+        } catch (parseError) {
+          console.error('Failed to parse JSON from response:', parseError);
+          analysisResult = this.extractAnalysisFromText(analysisResponse);
+        }
+      } else {
+        analysisResult = this.extractAnalysisFromText(analysisResponse);
+      }
+
       const scanDuration = `${((Date.now() - startTime) / 1000).toFixed(2)} seconds`;
       const linesOfCode = code.split('\n').filter(line => line.trim()).length;
       
-      // Ensure all arrays are initialized even if AI doesn't return them
       const analysis: ContractAnalysis = {
         securityScore: analysisResult.securityScore || 100,
         scanDuration,
         linesOfCode,
         issuesCount: 0,
+        summary: analysisResult.summary || "Analysis completed",
         critical: this.validateIssues(analysisResult.critical || []),
         high: this.validateIssues(analysisResult.high || []),
         medium: this.validateIssues(analysisResult.medium || []),
         low: this.validateIssues(analysisResult.low || []),
         informational: this.validateIssues(analysisResult.informational || []),
-        optimizations: this.validateOptimizations(analysisResult.optimizations || [])
+        optimizations: this.validateOptimizations(analysisResult.optimizations || []),
+        rawAnalysis: this.formatAnalysisResponse(rawAnalysis, analysisResult)
       };
 
-      // Calculate total issues count
       analysis.issuesCount = 
         analysis.critical.length +
         analysis.high.length +
@@ -100,21 +127,92 @@ export class ContractAnalyzer {
         analysis.low.length +
         analysis.informational.length;
 
+      console.log(`Found ${analysis.issuesCount} issues. Analysis completed in ${scanDuration}`);
+
+      if (analysis.issuesCount > 0) {
+        analysis.modificationSuggestions = await this.suggestContractModifications(code, analysis, model);
+      }
+
+      this.lastAnalysis = analysis;
       return analysis;
     } catch (error) {
       console.error('Contract analysis error:', error);
-      // Return a safe default if analysis fails
       return this.getDefaultAnalysis(code);
     }
+  }
+
+  private formatAnalysisResponse(rawAnalysis: string, analysisResult: any): string {
+    // Remove the JSON part since we'll format it differently
+    const cleanAnalysis = rawAnalysis.replace(/```json[\s\S]*?```/, '');
+    
+    let formattedResponse = "# Smart Contract Security Analysis\n\n";
+    formattedResponse += "## Analysis Process and Findings\n";
+    formattedResponse += cleanAnalysis.trim() + "\n\n";
+    
+    formattedResponse += "## Security Issues Summary\n\n";
+    
+    if (analysisResult.critical?.length > 0) {
+      formattedResponse += "### Critical Issues\n";
+      analysisResult.critical.forEach((issue: SecurityIssue) => {
+        formattedResponse += `- **${issue.type}**\n`;
+        formattedResponse += `  - Location: ${issue.location}\n`;
+        formattedResponse += `  - Description: ${issue.description}\n`;
+        formattedResponse += `  - Impact: ${issue.impact}\n`;
+        formattedResponse += `  - Recommendation: ${issue.recommendation}\n`;
+        if (issue.codeExample) {
+          formattedResponse += `  - Example Fix:\n\`\`\`move\n${issue.codeExample}\n\`\`\`\n`;
+        }
+      });
+    }
+
+    // Similar sections for high, medium, low, and informational issues...
+    
+    return formattedResponse;
+  }
+
+  private extractAnalysisFromText(text: string): any {
+    // Extract analysis details from text when JSON parsing fails
+    const result = {
+      securityScore: 0,
+      summary: "",
+      critical: [],
+      high: [],
+      medium: [],
+      low: [],
+      informational: [],
+      optimizations: []
+    };
+
+    // Look for severity indicators in the text
+    if (text.toLowerCase().includes("critical") || text.toLowerCase().includes("severe")) {
+      result.securityScore = 0;
+    } else if (text.toLowerCase().includes("high")) {
+      result.securityScore = 25;
+    } else if (text.toLowerCase().includes("medium")) {
+      result.securityScore = 50;
+    } else if (text.toLowerCase().includes("low")) {
+      result.securityScore = 75;
+    } else {
+      result.securityScore = 100;
+    }
+
+    // Extract summary
+    const summaryMatch = text.match(/summary:?\s*([^\n]+)/i);
+    if (summaryMatch) {
+      result.summary = summaryMatch[1];
+    }
+
+    return result;
   }
 
   private validateIssues(issues: any[]): SecurityIssue[] {
     return issues.map(issue => ({
       type: issue.type || 'Unknown Issue',
       description: issue.description || 'No description provided',
-      location: issue.location,
+      location: issue.location || 'Location not specified',
       impact: issue.impact || 'Impact not specified',
-      recommendation: issue.recommendation || 'No recommendation provided'
+      recommendation: issue.recommendation || 'No recommendation provided',
+      codeExample: issue.codeExample || null
     }));
   }
 
@@ -123,8 +221,58 @@ export class ContractAnalyzer {
       type: opt.type || 'Unknown Optimization',
       description: opt.description || 'No description provided',
       suggestion: opt.suggestion || 'No suggestion provided',
-      impact: opt.impact || 'Impact not specified'
+      impact: opt.impact || 'Impact not specified',
+      codeExample: opt.codeExample || null
     }));
+  }
+
+  private async suggestContractModifications(code: string, analysis: ContractAnalysis, model: string): Promise<string> {
+    try {
+      console.log("Requesting modification suggestions based on analysis...");
+      
+      const systemMessage = {
+        role: "system" as const,
+        content: "You are an expert Move smart contract developer. Provide code modifications with inline comments explaining the changes."
+      };
+
+      const userMessage = {
+        role: "user" as const,
+        content: `Provide specific code modifications to address these issues:
+
+Analysis Summary:
+${analysis.summary}
+
+Critical Issues: ${analysis.critical.map(i => i.type).join(", ")}
+High Issues: ${analysis.high.map(i => i.type).join(", ")}
+Medium Issues: ${analysis.medium.map(i => i.type).join(", ")}
+Low Issues: ${analysis.low.map(i => i.type).join(", ")}
+
+Original contract:
+
+${code}
+
+Return the modified contract with inline comments explaining each change.`
+      };
+
+      const completion = await this.groq.chat.completions.create({
+        messages: [systemMessage, userMessage],
+        model: model,
+      });
+
+      const modificationResponse = completion.choices[0]?.message?.content;
+      if (!modificationResponse) {
+        return "No modification suggestions available.";
+      }
+
+      return modificationResponse;
+    } catch (error) {
+      console.error('Modification suggestion error:', error);
+      return "Error fetching modification suggestions.";
+    }
+  }
+
+  getLastAnalysis(): ContractAnalysis | null {
+    return this.lastAnalysis;
   }
 
   private getDefaultAnalysis(code: string): ContractAnalysis {
@@ -133,6 +281,7 @@ export class ContractAnalyzer {
       scanDuration: '0 seconds',
       linesOfCode: code.split('\n').filter(line => line.trim()).length,
       issuesCount: 0,
+      summary: "No issues found in the initial analysis.",
       critical: [],
       high: [],
       medium: [],
@@ -143,5 +292,4 @@ export class ContractAnalyzer {
   }
 }
 
-// Export a singleton instance
 export const contractAnalyzer = new ContractAnalyzer();

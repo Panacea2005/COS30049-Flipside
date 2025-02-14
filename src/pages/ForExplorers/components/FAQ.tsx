@@ -1,19 +1,19 @@
 const FAQ_ITEMS = [
   {
-    question: 'Why should I explore blockchain analytics?',
-    answer: 'Understanding blockchain data helps you track transactions, detect trends, and make informed decisions in the crypto space.'
+    question: 'How secure is Flipside’s authentication and data storage?',
+    answer: 'Flipside uses Supabase Auth for secure login, RBAC policies for controlled access, and data encryption to protect user and transaction data. Blockchain immutability ensures stored transaction integrity.'
   },
   {
-    question: 'How does AI help me understand blockchain?',
-    answer: 'Our AI breaks down complex data, explaining transaction flows, smart contract behavior, and key trends in an easy-to-digest format.'
+    question: 'How do I connect my Sui Wallet?',
+    answer: 'Users can connect their Sui Wallet by clicking "Connect Wallet," selecting the provider, and approving the connection. Once linked, users can track balances, view transactions, and interact with the blockchain securely.'
   },
   {
-    question: 'Do I need technical skills?',
-    answer: 'Not at all! Our platform is built for anyone curious about blockchain, offering intuitive visualizations and AI-powered insights.'
+    question: 'What future enhancements are planned?',
+    answer: 'Upcoming features include multi-chain support, AI-powered fraud detection, real-time transaction alerts, and smart contract risk assessment to enhance blockchain analysis capabilities.'
   },
   {
-    question: 'Can I connect to my own wallet?',
-    answer: 'Yes! Simply connect your wallet address for smart contracts audition and deployment.'
+    question: 'How can I get support or provide feedback?',
+    answer: 'Users can access the Help Center for documentation, join the community forum for discussions, or contact the support team via email or live chat for direct assistance.'
   }
 ];
 

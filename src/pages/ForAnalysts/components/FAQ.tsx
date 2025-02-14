@@ -1,19 +1,19 @@
 const FAQ_ITEMS = [
   {
-    question: 'What blockchain statistics can I track?',
-    answer: 'You can explore real-time statistics on blockchain activity, including contract executions, gas fees, and transaction counts.'
+    question: 'What blockchain data can I explore using Flipside?',
+    answer: 'Flipside allows users to track wallet interactions, smart contract activity, transaction history, and blockchain trends. Users can explore transaction flows, gas fees, and historical data to gain insights into blockchain activity.'
   },
   {
-    question: 'How do I search for an address or contract?',
-    answer: 'Simply enter a wallet address, smart contract, or transaction hash, and our AI will generate graphs and transaction history.'
+    question: 'How does the transaction visualization feature work?',
+    answer: 'Users can search for a wallet address or contract, and the system will generate an interactive graph. Nodes represent wallets or contracts, while edges indicate transactions. Clicking on nodes allows users to explore connected transactions dynamically.'
   },
   {
-    question: 'Can I download or share my findings?',
-    answer: 'Yes! You can export transaction history, save dashboards, or share insights with your team.'
+    question: 'What data sources does Flipside use?',
+    answer: 'Flipside retrieves blockchain data from the Neo4j Graph Database for stored transaction history and integrates with Etherscan API and Sui SDK to fetch real-time blockchain data when needed.'
   },
   {
-    question: 'Is there a way to compare different addresses?',
-    answer: 'Yes, our platform lets you compare multiple wallet addresses or contracts side by side to analyze interactions.'
+    question: 'How does Flide AI assist in blockchain analysis?',
+    answer: 'Flide AI, powered by Groq API, provides AI-driven insights on transaction patterns, analyzes Move contracts for risks and optimizations, and answers general blockchain-related queries.'
   },
 ];
 

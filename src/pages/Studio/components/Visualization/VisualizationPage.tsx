@@ -55,9 +55,9 @@ export const VisualizationPage = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex gap-6">
+            <div className="flex flex-col lg:flex-row gap-6">
               {/* Graph Section */}
-              <div className="w-7/12 bg-white rounded-lg shadow-sm">
+              <div className="w-full lg:w-7/12 bg-white rounded-lg shadow-sm">
                 <div className="p-6">
                   <h2 className="text-2xl font-semibold leading-tight tracking-tight mb-4">Transaction Graph</h2>
                   <div className="h-[600px]"> {/* Fixed height for graph container */}
@@ -71,7 +71,7 @@ export const VisualizationPage = () => {
               </div>
 
               {/* Transactions Section */}
-              <div className="w-5/12 bg-white rounded-lg shadow-sm">
+              <div className="w-full lg:w-5/12 bg-white rounded-lg shadow-sm">
                 <div className="p-6">
                   <h2 className="text-2xl font-semibold leading-tight tracking-tight mb-4">Recent Transactions</h2>
                   <div className="h-[600px]"> {/* Fixed height for transactions container */}

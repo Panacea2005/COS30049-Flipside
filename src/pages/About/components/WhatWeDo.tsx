@@ -5,9 +5,11 @@ export const WhatWeDo = () => {
     <section className="py-32 bg-black text-white overflow-hidden">
       <Container>
         <div className="relative">
-          <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-16 sm:mb-32">
-            WHAT WE DO
-          </h2>
+          <div className="relative z-10">
+            <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-16 sm:mb-32">
+              WHAT WE DO
+            </h2>
+          </div>
 
           <div className="relative">
             {/* Angled panels graphic */}
@@ -15,10 +17,11 @@ export const WhatWeDo = () => {
               {Array.from({ length: 10 }).map((_, i) => (
                 <div
                   key={i}
-                  className="absolute left-0 w-full h-[300px] sm:h-[600px] bg-gradient-to-r from-violet-600 to-blue-600"
+                  className="absolute left-0 w-full h-[300px] sm:h-[600px] bg-gradient-to-r from-pink-500 to-purple-600"
                   style={{
-                    transform: `translateX(${i * 5}%) translateY(${i * 2}%) rotate(${15}deg)`,
+                    transform: `translateX(${i * 5}%) translateY(${i * 2}%) rotate(${15 + i * 10}deg) scale(${1 - i * 0.05})`,
                     opacity: 1 - (i * 0.1),
+                    borderRadius: `${i * 5}px`,
                   }}
                 />
               ))}
