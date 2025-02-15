@@ -10,7 +10,7 @@ export const GrowWallet = () => {
       <WalletGraphic />
       <Container className="relative z-10">
         <div className="pt-32 pb-16">
-          <SectionTitle>
+          <SectionTitle className="text-4xl sm:text-6xl md:text-8xl">
             GROW
             <br />
             YOUR
@@ -21,7 +21,7 @@ export const GrowWallet = () => {
           </SectionTitle>
 
           <p className="text-lg mb-24 max-w-md">
-          Deep dive into blockchain activity, smart contract interactions, and transaction patterns.
+            Deep dive into blockchain activity, smart contract interactions, and transaction patterns.
           </p>
 
           <div className="grid grid-cols-1 gap-8 mb-12">

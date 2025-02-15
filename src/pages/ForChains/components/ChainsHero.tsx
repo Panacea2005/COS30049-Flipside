@@ -12,7 +12,7 @@ export const ChainsHero = () => {
             <br />
             blockchain
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-gray-400 mb-12 max-w-xl">
+          <p className="text-lg sm:text-xl md:text-2xl text-white mb-12 max-w-xl">
             Flide AI transforms smart contract security, analytics, and onchain
             growth with powerful AI-driven insights. We help blockchains
             optimize contracts, mitigate risks, and activate the right users for

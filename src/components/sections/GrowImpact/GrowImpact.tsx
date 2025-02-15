@@ -10,7 +10,7 @@ export const GrowImpact = () => {
       <ImpactGraphic />
       <Container className="relative z-10">
         <div className="pt-32 pb-16">
-          <SectionTitle>
+          <SectionTitle className="text-4xl sm:text-6xl md:text-8xl">
             GROW
             <br />
             <span className="bg-gradient-to-r from-purple-400 to-violet-500 text-transparent bg-clip-text">
@@ -21,7 +21,7 @@ export const GrowImpact = () => {
           </SectionTitle>
 
           <p className="text-lg mb-24 max-w-md">
-          Transform blockchain data into interactive dashboards & analytics.
+            Transform blockchain data into interactive dashboards & analytics.
           </p>
 
           <div className="grid grid-cols-1 gap-8 mb-12">

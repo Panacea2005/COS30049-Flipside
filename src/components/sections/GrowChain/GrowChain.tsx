@@ -10,8 +10,8 @@ export const GrowChain = () => {
       <ChainGraphic />
       <Container className="relative z-10">
         <div className="pt-32 pb-16">
-          <SectionTitle>
-            <span className="bg-gradient-to-r from-sky-400 to-bkue-500 text-transparent bg-clip-text">
+          <SectionTitle className="text-4xl sm:text-6xl md:text-8xl">
+            <span className="bg-gradient-to-r from-sky-400 to-blue-500 text-transparent bg-clip-text">
               GROW
             </span>
             <br />
