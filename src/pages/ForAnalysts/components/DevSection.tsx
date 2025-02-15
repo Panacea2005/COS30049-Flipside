@@ -166,11 +166,11 @@ export const DevSection = () => {
   }, []);
 
   return (
-    <section className="py-32 bg-black text-white overflow-hidden">
+    <section className="py-16 sm:py-32 bg-black text-white overflow-hidden">
       <Container>
         <div className="relative">
           <div className="relative z-10">
-            <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-32">
+            <h2 className="text-3xl sm:text-4xl md:text-6xl leading-none font-light mb-16 sm:mb-32">
               <span className="bg-gradient-to-r from-purple-600 via-purple-700 to-blue-900 text-transparent bg-clip-text">
                 GOOD DEVS
               </span>
@@ -187,7 +187,7 @@ export const DevSection = () => {
               {Array.from({ length: 10 }).map((_, i) => (
                 <div
                   key={i}
-                  className="absolute left-0 w-full h-[600px] bg-gradient-to-r from-purple-600 to-blue-900"
+                  className="absolute left-0 w-full h-[300px] sm:h-[600px] bg-gradient-to-r from-purple-600 to-blue-900"
                   style={{
                     transform: `translateX(${i * 5}%) translateY(${
                       i * 2
@@ -200,9 +200,9 @@ export const DevSection = () => {
 
             {/* Content overlays */}
             <div className="relative z-10">
-              <div className="bg-violet-900/80 backdrop-blur-sm rounded-lg p-8 hover:bg-gradient-to-r hover:from-violet-600 hover:to-blue-600 transition duration-300 ease-in-out">
+              <div className="bg-violet-900/80 backdrop-blur-sm rounded-lg p-4 sm:p-8 hover:bg-gradient-to-r hover:from-violet-600 hover:to-blue-600 transition duration-300 ease-in-out">
                 <div className="rounded-lg overflow-hidden mb-4">
-                  <div className="w-full h-96">
+                  <div className="w-full h-48 sm:h-96">
                     <svg ref={svgRef} className="w-full h-full" />
                   </div>
                 </div>

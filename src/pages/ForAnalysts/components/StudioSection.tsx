@@ -1,7 +1,7 @@
 export const StudioSection = () => {
   return (
-    <section className="py-32">
-      <h2 className="text-4xl sm:text-6xl md:text-8xl leading-none font-light mb-32">
+    <section className="py-16 sm:py-32 px-4 sm:px-0">
+      <h2 className="text-3xl sm:text-4xl md:text-6xl leading-none font-light mb-16 sm:mb-32">
         DATA STARTS
         <br />
         IN THE
@@ -15,7 +15,7 @@ export const StudioSection = () => {
         {/* About Studio */}
         <div className="col-span-1 sm:col-span-2">
           <span className="text-violet-600 text-sm">About Studio</span>
-          <p className="text-2xl mt-4">
+          <p className="text-xl sm:text-2xl mt-4">
             Unlock blockchain intelligence with our three core features:
           </p>
         </div>
@@ -34,7 +34,7 @@ export const StudioSection = () => {
           </div>
           <div className="mt-8">
             <div className="text-sm text-gray-600 mb-2">Overview Tab</div>
-            <p className="text-xl">
+            <p className="text-lg sm:text-xl">
               Get a high-level view of blockchain activity, including contract
               interactions, gas usage, and top addresses.
             </p>
@@ -55,7 +55,7 @@ export const StudioSection = () => {
           </div>
           <div className="mt-8">
             <div className="text-sm text-gray-600 mb-2">Visualization Tab</div>
-            <p className="text-xl">
+            <p className="text-lg sm:text-xl">
               Search any wallet address to generate a graph-based visualization
               of onchain transactions.
             </p>
@@ -77,7 +77,7 @@ export const StudioSection = () => {
             </div>
             <div className="mt-8">
               <div className="text-sm text-gray-600 mb-2">Transaction Tab</div>
-              <p className="text-xl">
+              <p className="text-lg sm:text-xl">
                 Explore detailed transaction logs, including timestamps,
                 amounts, and counterparties, to track fund movements.
               </p>

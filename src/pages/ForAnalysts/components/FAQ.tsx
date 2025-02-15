@@ -19,27 +19,27 @@ const FAQ_ITEMS = [
 
 export const FAQ = () => {
   return (
-    <section className="py-32">
-      <div className="mb-16">
+    <section className="py-16 sm:py-32 px-4 sm:px-0">
+      <div className="mb-8 sm:mb-16">
         <span className="text-violet-600 text-sm">Frequently Asked Questions</span>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-8">
         {FAQ_ITEMS.map((item, index) => (
           <details key={index} className="group">
-            <summary className="flex justify-between items-center cursor-pointer py-6 text-2xl">
+            <summary className="flex justify-between items-center cursor-pointer py-4 sm:py-6 text-lg sm:text-2xl">
               {item.question}
               <span className="transform group-open:rotate-45 transition-transform">+</span>
             </summary>
-            <div className="pb-6 text-gray-600">
+            <div className="pb-4 sm:pb-6 text-gray-600">
               {item.answer}
             </div>
           </details>
         ))}
       </div>
 
-      <div className="mt-32 bg-violet-600 rounded-lg p-16">
-        <h3 className="text-3xl text-white font-light mb-4">
+      <div className="mt-16 sm:mt-32 bg-violet-600 rounded-lg p-8 sm:p-16">
+        <h3 className="text-2xl sm:text-3xl text-white font-light mb-4">
           To go fast, go alone. To go far, go together.
           <br />
           Join our fast-growing global community.
@@ -47,9 +47,9 @@ export const FAQ = () => {
         
         <a 
           href="https://discord.gg/flipside"
-          className="inline-flex items-center space-x-2 text-white/80 hover:text-white mt-8 group"
+          className="inline-flex items-center space-x-2 text-white/80 hover:text-white mt-4 sm:mt-8 group"
         >
-          <img src="/discord-white.png" alt="" className="w-7 h-6" />
+          <img src="/discord-white.png" alt="" className="w-6 h-5 sm:w-7 sm:h-6" />
           <span>Join Discord</span>
           <span className="transform group-hover:translate-x-1 transition-transform">→</span>
         </a>

@@ -14,13 +14,13 @@ export const ImpactGraphic = () => {
         
         {/* 3D Impact graphic */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="w-48 h-48 sm:w-[600px] sm:h-[600px] relative">
-            {Array.from({ length: 8 }).map((_, i) => (
+          <div className="w-48 h-48 sm:w-96 sm:h-96 relative">
+            {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
                 className="absolute inset-0 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl"
                 style={{
-                  transform: `translateX(${i * 30}px) translateY(${i * -10}px) rotateY(-20deg)`,
+                  transform: `translateX(${i * 20}px) translateY(${i * 10}px) rotateY(-20deg)`,
                   opacity: 1 - (i * 0.1),
                   filter: 'brightness(1.2)',
                   boxShadow: '0 0 40px rgba(139, 92, 246, 0.3)',

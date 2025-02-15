@@ -19,17 +19,17 @@ export const StudioTabs = ({ activeTab, onTabChange }: StudioTabsProps) => {
     <div className="border-b">
       <div className="container max-w-screen-2xl mx-auto px-4">
         <Tabs value={activeTab} onValueChange={onTabChange as (value: string) => void}>
-          <TabsList className="h-12 mt-20">
+          <TabsList className="flex h-12 mt-4 sm:mt-8 overflow-x-auto whitespace-nowrap">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <TabsTrigger 
                   key={tab.id} 
                   value={tab.id}
-                  className="flex items-center gap-2 px-4"
+                  className="flex items-center gap-2 px-4 py-2 sm:py-0"
                 >
                   <Icon className="w-4 h-4" />
-                  {tab.label}
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </TabsTrigger>
               );
             })}

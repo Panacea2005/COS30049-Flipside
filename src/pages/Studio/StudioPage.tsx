@@ -34,7 +34,7 @@ export const StudioPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pt-12 sm:pt-8">
       <StudioTabs activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="container max-w-screen-2xl mx-auto px-4 py-8">
         {renderContent()}
