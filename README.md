@@ -2,15 +2,10 @@
 
 📊 **Explore blockchain transactions with interactive visualization, AI insights, and real-time analytics.**  
 
-![Flipside Preview](your-image-link-here)
-
 ## 🔗 Live Demo & Project Links
 - **🌐 Live Deployment:** [Flipside Web Application](https://flipsidecrypto.netlify.app)
-- **🎨 Figma UI Design:** [Flipside UI/UX Wireframes](https://www.figma.com/design/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-
-Prototype-Design?node-id=0-1&p=f&t=m9VYXTX506QfZIBe-0)
-- **🖥️ Figma Interactive Prototype:** [Flipside Clickable Prototype](https://www.figma.com/proto/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design?nodeid=
-0-1&t=m9VYXTX506QfZIBe-1)
-
+- **🎨 Figma UI Design:** [Flipside UI/UX Wireframes](https://www.figma.com/design/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design?node-id=0-1&p=f&t=m9VYXTX506QfZIBe-0)
+- **🖥️ Figma Interactive Prototype:** [Flipside Clickable Prototype](https://www.figma.com/proto/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design?nodeid=0-1&t=m9VYXTX506QfZIBe-1)
 ---
 
 ## 📖 Table of Contents
