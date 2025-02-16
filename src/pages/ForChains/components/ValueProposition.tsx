@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { Container } from "../../../components/layout/Container";
 
 const VALUE_PROPS = [
@@ -54,9 +55,40 @@ export const ValueProposition = () => {
               className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-16 items-center"
             >
               <div className={i % 2 === 0 ? "order-1" : "order-2"}>
-                <img src={prop.image} alt="" className="w-full rounded-lg" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true, amount: 0.5 }}
+                  transition={{
+                    duration: 0.5,
+                    ease: "easeOut"
+                  }}
+                >
+                  <img
+                    src={prop.image}
+                    alt={prop.label}
+                    className="w-full rounded-lg"
+                  />
+                </motion.div>
               </div>
-              <div className={i % 2 === 0 ? "order-2" : "order-1"}>
+
+              <motion.div
+                style={{
+                  order: i % 2 === 0 ? 2 : 1, // This replaces the order-* class
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem", // Equivalent to `space-y-4`
+                }}
+                initial={{ opacity: 0, x: i % 2 === 0 ? 50 : -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, amount: 0.5 }}
+                transition={{
+                  duration: 0.5,
+                  ease: "easeOut",
+                  delay: 0.2,
+                }}
+              >
+
                 <span className="text-blue-600 text-sm">{prop.label}</span>
                 <p className="text-xl sm:text-2xl font-light mt-4 mb-8 text-gray-900">
                   {prop.title}
@@ -70,7 +102,7 @@ export const ValueProposition = () => {
                     <span>→</span>
                   </a>
                 )}
-              </div>
+              </motion.div>
             </div>
           ))}
         </div>

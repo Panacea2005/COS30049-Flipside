@@ -1,5 +1,6 @@
 import { Container } from "../../../components/layout/Container";
 import { Lightbulb, Trophy, BarChart, Handshake } from "lucide-react";
+import { motion, Variants } from "framer-motion";
 
 const BELIEFS = [
   {
@@ -28,6 +29,15 @@ const BELIEFS = [
   },
 ];
 
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: -50 },
+  visible: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, delay: index * 0.2, ease: "easeOut" },
+  }),
+};
+
 export const WhatWeBelieve = () => {
   return (
     <section className="py-32 relative overflow-hidden">
@@ -45,15 +55,21 @@ export const WhatWeBelieve = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-16 relative z-10">
-          {BELIEFS.map((belief) => (
-            <div
+          {BELIEFS.map((belief, index) => (
+            <motion.div
               key={belief.title}
-              className="bg-white p-8 rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              custom={index}
+              variants={cardVariants}
+              style={{ background: "white", padding: "2rem", borderRadius: "0.5rem", boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)", transition: "box-shadow 0.3s" }}
+              whileHover={{ boxShadow: "0 15px 30px rgba(0, 0, 0, 0.2)" }}
             >
-              <div className="text-4xl mb-4">{belief.icon}</div>
-              <h3 className="text-2xl font-light mb-4">{belief.title}</h3>
-              <p className="text-gray-600">{belief.description}</p>
-            </div>
+              <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>{belief.icon}</div>
+              <h3 style={{ fontSize: "1.5rem", fontWeight: 300, marginBottom: "1rem" }}>{belief.title}</h3>
+              <p style={{ color: "#4B5563" }}>{belief.description}</p>
+            </motion.div>
           ))}
         </div>
       </Container>

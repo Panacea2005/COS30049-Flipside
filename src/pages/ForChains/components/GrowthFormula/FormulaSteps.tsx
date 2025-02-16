@@ -53,7 +53,7 @@ export const FormulaSteps = () => {
         {/* Content */}
         <div style={{ position: 'relative', zIndex: 10 }}>
           {STEPS.map((step, i) => (
-            <div
+            <motion.div
               key={i}
               style={{
                 backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -65,6 +65,15 @@ export const FormulaSteps = () => {
                 marginLeft: 'auto',
                 marginRight: 'auto',
                 color: 'white',
+                opacity: 0, // Initially hidden
+              }}
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: false, amount: 0.5 }}
+              transition={{
+                duration: 0.6,
+                ease: "easeOut",
+                delay: i * 0.2 // Stagger effect
               }}
             >
               <h3 style={{ 
@@ -75,13 +84,13 @@ export const FormulaSteps = () => {
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
                 color: 'transparent',
-                backgroundSize: '200%', // Adjusted to make gradient more visible
-                backgroundPosition: 'center', // Adjusted to make gradient more visible
+                backgroundSize: '200%',
+                backgroundPosition: 'center',
               }}>
                 {step.title}
               </h3>
               <p style={{ color: '#D1D5DB' }}>{step.description}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

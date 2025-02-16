@@ -1,100 +1,154 @@
+import { motion } from "framer-motion";
+
 export const StudioSection = () => {
   return (
-    <section className="py-16 sm:py-32 px-4 sm:px-0">
-      <h2 className="text-3xl sm:text-4xl md:text-6xl leading-none font-light mb-16 sm:mb-32">
+    <section style={{ padding: "4rem 1rem", textAlign: "center" }}>
+      <h2
+        style={{
+          fontSize: "2.5rem",
+          fontWeight: "300",
+          marginBottom: "4rem",
+          lineHeight: "1.2",
+        }}
+      >
         DATA STARTS
         <br />
         IN THE
         <br />
-        <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 text-transparent bg-clip-text">
+        <span
+          style={{
+            background: "linear-gradient(to right, #a855f7, #ec4899, #3b82f6)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           STUDIO
         </span>
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-16">
-        {/* About Studio */}
-        <div className="col-span-1 sm:col-span-2">
-          <span className="text-violet-600 text-sm">About Studio</span>
-          <p className="text-xl sm:text-2xl mt-4">
-            Unlock blockchain intelligence with our three core features:
-          </p>
-        </div>
-
-        {/* Query Builder */}
-        <div className="bg-gray-50 rounded-2xl p-8">
-          <div className="mb-8">
-            <code className="text-pink-500">Overview Statistics Dashboard</code>
-          </div>
-          <div className="rounded-lg overflow-hidden mt-4">
-            <img
-              src="./overview.png"
-              alt="Overview Statistics Dashboard"
-              className="w-full h-auto"
-            />
-          </div>
-          <div className="mt-8">
-            <div className="text-sm text-gray-600 mb-2">Overview Tab</div>
-            <p className="text-lg sm:text-xl">
-              Get a high-level view of blockchain activity, including contract
-              interactions, gas usage, and top addresses.
-            </p>
-          </div>
-        </div>
-
-        {/* Dashboard Preview */}
-        <div className="bg-gray-50 rounded-2xl p-8">
-          <div className="mb-8">
-            <code className="text-pink-500">Address Statistics & Graphs</code>
-          </div>
-          <div className="rounded-lg overflow-hidden mt-4">
-            <img
-              src="./visualization.png"
-              alt="Overview Statistics Dashboard"
-              className="w-full h-auto"
-            />
-          </div>
-          <div className="mt-8">
-            <div className="text-sm text-gray-600 mb-2">Visualization Tab</div>
-            <p className="text-lg sm:text-xl">
-              Search any wallet address to generate a graph-based visualization
-              of onchain transactions.
-            </p>
-          </div>
-        </div>
-
-        {/* Share to Earn */}
-        <div className="col-span-1 sm:col-span-2">
-          <div className="bg-gray-50 rounded-2xl p-8">
-            <div className="mb-8">
-              <code className="text-pink-500">Full Transaction History</code>
-            </div>
-            <div className="rounded-lg overflow-hidden mt-4">
-              <img
-                src="./transaction.png"
-                alt="Overview Statistics Dashboard"
-                className="w-full h-auto"
-              />
-            </div>
-            <div className="mt-8">
-              <div className="text-sm text-gray-600 mb-2">Transaction Tab</div>
-              <p className="text-lg sm:text-xl">
-                Explore detailed transaction logs, including timestamps,
-                amounts, and counterparties, to track fund movements.
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* About Studio */}
+      <div style={{ maxWidth: "800px", margin: "0 auto 3rem" }}>
+        <span style={{ color: "#7C3AED", fontSize: "0.9rem" }}>About Studio</span>
+        <p style={{ fontSize: "1.25rem", marginTop: "1rem" }}>
+          Unlock blockchain intelligence with our three core features:
+        </p>
       </div>
 
-      <a
-        href="/studio"
-        className="inline-flex items-center space-x-2 bg-black text-white px-8 py-4 rounded-lg mt-16 group hover:bg-gray-900"
+      {/* Cards Container */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          gap: "2rem",
+          justifyContent: "center",
+          maxWidth: "80rem",
+          margin: "0 auto",
+        }}
       >
-        <span>Enter Studio</span>
-        <span className="transform group-hover:translate-x-1 transition-transform">
-          →
-        </span>
-      </a>
+        {/* Overview Statistics Dashboard */}
+        <motion.div
+          style={{
+            backgroundColor: "#F9FAFB",
+            borderRadius: "1rem",
+            padding: "2rem",
+            textAlign: "left",
+          }}
+          initial={{ opacity: 0, x: -50 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: false, amount: 0.5 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
+          <code style={{ color: "#EC4899", fontSize: "1rem" }}>Overview Statistics Dashboard</code>
+          <div style={{ borderRadius: "0.5rem", overflow: "hidden", marginTop: "1rem" }}>
+            <img src="./overview.png" alt="Overview Statistics Dashboard" style={{ width: "100%" }} />
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <div style={{ fontSize: "0.875rem", color: "#6B7280", marginBottom: "0.5rem" }}>Overview Tab</div>
+            <p style={{ fontSize: "1.125rem", color: "#111827" }}>
+              Get a high-level view of blockchain activity, including contract interactions, gas usage, and top addresses.
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Address Statistics & Graphs */}
+        <motion.div
+          style={{
+            backgroundColor: "#F9FAFB",
+            borderRadius: "1rem",
+            padding: "2rem",
+            textAlign: "left",
+          }}
+          initial={{ opacity: 0, x: 50 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: false, amount: 0.5 }}
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+        >
+          <code style={{ color: "#EC4899", fontSize: "1rem" }}>Address Statistics & Graphs</code>
+          <div style={{ borderRadius: "0.5rem", overflow: "hidden", marginTop: "1rem" }}>
+            <img src="./visualization.png" alt="Visualization" style={{ width: "100%" }} />
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <div style={{ fontSize: "0.875rem", color: "#6B7280", marginBottom: "0.5rem" }}>Visualization Tab</div>
+            <p style={{ fontSize: "1.125rem", color: "#111827" }}>
+              Search any wallet address to generate a graph-based visualization of on-chain transactions.
+            </p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Full Transaction History (Appears from Bottom) */}
+      <motion.div
+        style={{
+          backgroundColor: "#F9FAFB",
+          borderRadius: "1rem",
+          padding: "2rem",
+          marginTop: "2rem",
+          maxWidth: "50rem",
+          marginLeft: "auto",
+          marginRight: "auto",
+          textAlign: "left",
+        }}
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.5 }}
+        transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}
+      >
+        <code style={{ color: "#EC4899", fontSize: "1rem" }}>Full Transaction History</code>
+        <div style={{ borderRadius: "0.5rem", overflow: "hidden", marginTop: "1rem" }}>
+          <img src="./transaction.png" alt="Transaction History" style={{ width: "100%" }} />
+        </div>
+        <div style={{ marginTop: "1rem" }}>
+          <div style={{ fontSize: "0.875rem", color: "#6B7280", marginBottom: "0.5rem" }}>Transaction Tab</div>
+          <p style={{ fontSize: "1.125rem", color: "#111827" }}>
+            Explore detailed transaction logs, including timestamps, amounts, and counterparties, to track fund movements.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* CTA Button */}
+      <motion.div
+        whileHover={{ x: 5 }}
+      >
+        <a
+          href="/studio"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            backgroundColor: "black",
+            color: "white",
+            padding: "1rem 2rem",
+            borderRadius: "0.5rem",
+            fontSize: "1.125rem",
+            textDecoration: "none",
+            cursor: "pointer",
+            transition: "background 0.3s",
+          }}
+        >
+          <span>Enter Studio</span>
+          <span style={{ transition: "transform 0.2s" }}>→</span>
+        </a>
+      </motion.div>
     </section>
   );
 };
