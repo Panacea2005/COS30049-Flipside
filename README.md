@@ -5,11 +5,11 @@
 ![Flipside Preview](your-image-link-here)
 
 ## 🔗 Live Demo & Project Links
-- **🌐 Live Deployment:** [Flipside Web Application](your-deployed-web-link-here)
-- **🎨 Figma UI Design:** [Flipside UI/UX Wireframes](your-figma-design-link-here)
-- **🖥️ Figma Interactive Prototype:** [Flipside Clickable Prototype](your-figma-prototype-link-here)
-- **💻 GitHub Repository:** [Source Code & Documentation](your-github-repo-link-here)
-- **📄 API Documentation (if applicable):** [Flipside API Docs](your-api-docs-link-here)
+- **🌐 Live Deployment:** [Flipside Web Application](https://flipsidecrypto.netlify.app)
+- **🎨 Figma UI Design:** [Flipside UI/UX Wireframes](https://www.figma.com/design/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-
+Prototype-Design?node-id=0-1&p=f&t=m9VYXTX506QfZIBe-0)
+- **🖥️ Figma Interactive Prototype:** [Flipside Clickable Prototype](https://www.figma.com/proto/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design?nodeid=
+0-1&t=m9VYXTX506QfZIBe-1)
 
 ---
 
@@ -67,21 +67,7 @@ bash
 Copy
 Edit
 npm install
-3️⃣ Set Up Environment Variables
-Create a .env file in the root directory and add the following:
 
-env
-Copy
-Edit
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-NEXT_PUBLIC_NEO4J_URI=your-neo4j-uri
-NEXT_PUBLIC_NEO4J_USER=your-neo4j-user
-NEXT_PUBLIC_NEO4J_PASSWORD=your-neo4j-password
-NEXT_PUBLIC_ETHERSCAN_API_KEY=your-etherscan-api-key
-NEXT_PUBLIC_SUI_WALLET_API=your-sui-wallet-api
-NEXT_PUBLIC_GROQ_API_KEY=your-groq-api-key
-4️⃣ Start the Development Server
 bash
 Copy
 Edit
@@ -104,23 +90,12 @@ Use the following credentials to log in and test the system:
 yaml
 Copy
 Edit
-📧 Email: testuser@flipside.com
-🔑 Password: FlipsideTest123!
-Note: This is a demo account with limited access. Some advanced features (wallet connection, contract deployment) may be disabled.
+📧 Email: ng.t.thien01@gmail.com
+🔑 Password: 10082005
 
-👨‍💻 Contributing
-We welcome contributions! 🚀
-
-How to Contribute?
-Fork the repository
-Create a new branch (feature/new-feature)
-Commit changes (git commit -m "Add new feature")
-Push to GitHub (git push origin feature/new-feature)
-Open a Pull Request 🎉
 📜 License
 This project is licensed under the MIT License. See the LICENSE file for more details.
 
 📩 Contact
 For support, questions, or feedback:
-📧 Email: your-email@flipside.com
-🐙 GitHub Issues: Report an Issue
+📧 Email: ng.t.thien01@gmail.com
