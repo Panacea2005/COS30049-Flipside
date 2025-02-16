@@ -3,6 +3,19 @@ import { SectionTitle } from '../common/SectionTitle';
 import { FeatureCard } from '../common/FeatureCard';
 import { ExploreButton } from '../../common/ExploreButton/ExploreButton';
 import { ImpactGraphic } from '../../graphics/ImpactGraphic';
+import { motion } from "framer-motion";
+
+const cardVariants = {
+  hidden: (direction: 'left' | 'right') => ({
+    opacity: 0,
+    x: direction === "left" ? -100 : 100,
+  }),
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.8, ease: "easeOut" },
+  },
+};
 
 export const GrowImpact = () => {
   return (
@@ -26,39 +39,63 @@ export const GrowImpact = () => {
 
           <div className="grid grid-cols-1 gap-8 mb-12">
             <div className="grid grid-cols-2 gap-8">
-              <FeatureCard
-                label="Onchain Transaction Dashboard"
-                title="Visualize real-time transaction statistics."
-                ctaText="Launch Studio"
-                ctaHref="/studio"
-                theme="light"
-                className="backdrop-blur-2xl"
-              />
+              <motion.div
+                custom="left"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={cardVariants}
+              >
+                <FeatureCard
+                  label="Onchain Transaction Dashboard"
+                  title="Visualize real-time transaction statistics."
+                  ctaText="Launch Studio"
+                  ctaHref="/studio"
+                  theme="light"
+                  className="backdrop-blur-2xl"
+                />
+              </motion.div>
               <div className="col-start-2" />
             </div>
 
             <div className="grid grid-cols-2 gap-8">
               <div className="col-start-2">
-                <FeatureCard
-                  label="Transaction History"
-                  title="Transactions in Tabular Format."
-                  ctaText="View History"
-                  ctaHref="/studio"
-                  theme="light"
-                  className="backdrop-blur-2xl"
-                />
+                <motion.div
+                  custom="right"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={cardVariants}
+                >
+                  <FeatureCard
+                    label="Transaction History"
+                    title="Transactions in Tabular Format."
+                    ctaText="View History"
+                    ctaHref="/studio"
+                    theme="light"
+                    className="backdrop-blur-2xl"
+                  />
+                </motion.div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-8">
-              <FeatureCard
-                label=" Graph-Based Data Exploration"
-                title="Explore blockchain connections dynamically."
-                ctaText="Explore Blockchain Graphs"
-                ctaHref="/studio"
-                theme="light"
-                className="backdrop-blur-2xl"
-              />
+              <motion.div
+                custom="left"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={cardVariants}
+              >
+                <FeatureCard
+                  label=" Graph-Based Data Exploration"
+                  title="Explore blockchain connections dynamically."
+                  ctaText="Explore Blockchain Graphs"
+                  ctaHref="/studio"
+                  theme="light"
+                  className="backdrop-blur-2xl"
+                />
+              </motion.div>
               <div className="col-start-2" />
             </div>
           </div>

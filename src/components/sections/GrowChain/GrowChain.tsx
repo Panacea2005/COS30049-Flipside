@@ -3,6 +3,19 @@ import { SectionTitle } from "../common/SectionTitle";
 import { FeatureCard } from "../common/FeatureCard";
 import { ExploreButton } from "../../common/ExploreButton/ExploreButton";
 import { ChainGraphic } from "../../graphics/ChainGraphic";
+import { motion } from "framer-motion";
+
+const cardVariants = {
+  hidden: (direction: 'left' | 'right') => ({
+    opacity: 0,
+    x: direction === "left" ? -100 : 100,
+  }),
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.8, ease: "easeOut" },
+  },
+};
 
 export const GrowChain = () => {
   return (
@@ -27,37 +40,60 @@ export const GrowChain = () => {
 
           <div className="grid grid-cols-1 gap-8 mb-12">
             <div className="grid grid-cols-2 gap-8">
-              <FeatureCard
-                label="AI Contract Analysis"
-                title="Audit & optimize Move & Sui contracts with AI."
-                ctaText="Analyze Contracts"
-                ctaHref="/flide"
-                className="backdrop-blur-2xl"
-              />
-              <div className="col-start-2" /> {/* Empty space for layout */}
+              <motion.div
+                custom="left"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={cardVariants}
+              >
+                <FeatureCard
+                  label="AI Contract Analysis"
+                  title="Audit & optimize Move & Sui contracts with AI."
+                  ctaText="Analyze Contracts"
+                  ctaHref="/flide"
+                  className="backdrop-blur-2xl"
+                />
+              </motion.div>
+              <div className="col-start-2" />
             </div>
 
             <div className="grid grid-cols-2 gap-8">
-              <div className="col-start-2">
+              <motion.div
+                custom="right"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={cardVariants}
+                style={{ gridColumnStart: 2 }}
+              >
                 <FeatureCard
-                  label="Seamless Onchain Deployment "
+                  label="Seamless Onchain Deployment"
                   title="Deploy contracts with confidence."
                   ctaText="Deploy with AI"
                   ctaHref="/flide"
                   className="backdrop-blur-2xl"
                 />
-              </div>
+              </motion.div>
             </div>
 
             <div className="grid grid-cols-2 gap-8">
-              <FeatureCard
-                label="Smart Wallet Activation"
-                title="Identify & engage key blockchain participants."
-                ctaText="Discover Chain Analytics"
-                ctaHref="/flide"
-                className="backdrop-blur-2xl"
-              />
-              <div className="col-start-2" /> {/* Empty space for layout */}
+              <motion.div
+                custom="left"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={cardVariants}
+              >
+                <FeatureCard
+                  label="Smart Wallet Activation"
+                  title="Identify & engage key blockchain participants."
+                  ctaText="Discover Chain Analytics"
+                  ctaHref="/flide"
+                  className="backdrop-blur-2xl"
+                />
+              </motion.div>
+              <div className="col-start-2" />
             </div>
           </div>
 
