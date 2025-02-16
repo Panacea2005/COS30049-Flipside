@@ -3,6 +3,19 @@ import { SectionTitle } from '../common/SectionTitle';
 import { FeatureCard } from '../common/FeatureCard';
 import { ExploreButton } from '../../common/ExploreButton/ExploreButton';
 import { WalletGraphic } from '../../graphics/WalletGraphic';
+import { motion } from "framer-motion";
+
+const cardVariants = {
+  hidden: (direction: 'left' | 'right') => ({
+    opacity: 0,
+    x: direction === "left" ? -100 : 100,
+  }),
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.8, ease: "easeOut" },
+  },
+};
 
 export const GrowWallet = () => {
   return (
@@ -26,36 +39,60 @@ export const GrowWallet = () => {
 
           <div className="grid grid-cols-1 gap-8 mb-12">
             <div className="grid grid-cols-2 gap-8">
-              <FeatureCard
-                label="Explorer Dashboards"
-                title="Track key metrics and blockchain activity in real time."
-                ctaText="Browse Dashboards"
-                ctaHref="/studio"
-                className="backdrop-blur-2xl"
-              />
+              <motion.div
+                custom="left"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={cardVariants}
+              >
+                <FeatureCard
+                  label="Explorer Dashboards"
+                  title="Track key metrics and blockchain activity in real time."
+                  ctaText="Browse Dashboards"
+                  ctaHref="/studio"
+                  className="backdrop-blur-2xl"
+                />
+              </motion.div>
               <div className="col-start-2" />
             </div>
 
             <div className="grid grid-cols-2 gap-8">
               <div className="col-start-2">
-                <FeatureCard
-                  label="Transaction Insights"
-                  title="Understand token movements, wallet behavior, and contract usage."
-                  ctaText="Analyze Transactions"
-                  ctaHref="/studio"
-                  className="backdrop-blur-2xl"
-                />
+                <motion.div
+                  custom="right"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={cardVariants}
+                >
+                  <FeatureCard
+                    label="Transaction Insights"
+                    title="Understand token movements, wallet behavior, and contract usage."
+                    ctaText="Analyze Transactions"
+                    ctaHref="/studio"
+                    className="backdrop-blur-2xl"
+                  />
+                </motion.div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-8">
-              <FeatureCard
-                label="Network Trends & Patterns"
-                title="Discover emerging trends shaping the blockchain ecosystem."
-                ctaText="Explore Network Trends"
-                ctaHref="/studio"
-                className="backdrop-blur-2xl"
-              />
+              <motion.div
+                custom="left"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={cardVariants}
+              >
+                <FeatureCard
+                  label="Network Trends & Patterns"
+                  title="Discover emerging trends shaping the blockchain ecosystem."
+                  ctaText="Explore Network Trends"
+                  ctaHref="/studio"
+                  className="backdrop-blur-2xl"
+                />
+              </motion.div>
               <div className="col-start-2" />
             </div>
           </div>
