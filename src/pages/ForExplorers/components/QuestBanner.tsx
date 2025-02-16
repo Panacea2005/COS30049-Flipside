@@ -24,10 +24,10 @@ export const QuestBanner = () => {
         </h2>
         
         <a 
-          href="/quests"
+          href="/studio"
           className="inline-flex items-center space-x-2 text-white/80 hover:text-white mt-8 group"
         >
-          <span>View all quests</span>
+          <span>View studio</span>
           <span className="transform group-hover:translate-x-1 transition-transform">→</span>
         </a>
       </div>

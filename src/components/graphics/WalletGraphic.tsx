@@ -1,7 +1,34 @@
+import { useEffect, useRef } from 'react';
+
 export const WalletGraphic = () => {
+  const graphicRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          graphicRef.current?.classList.add('animate-appear');
+        } else {
+          graphicRef.current?.classList.remove('animate-appear');
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (graphicRef.current) {
+      observer.observe(graphicRef.current);
+    }
+
+    return () => {
+      if (graphicRef.current) {
+        observer.unobserve(graphicRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div className="absolute inset-0 z-0">
-      <div className="relative w-full h-full">
+    <div className="absolute inset-0 z-0 flex items-center justify-center">
+      <div className="relative w-full h-full flex items-center justify-center">
         {/* Grid background */}
         <div className="absolute inset-0">
           <svg width="100%" height="100%" className="opacity-20">
@@ -13,7 +40,7 @@ export const WalletGraphic = () => {
         </div>
         
         {/* 3D Wallet graphic */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+        <div ref={graphicRef} className="opacity-0 transition-opacity duration-1000 ease-out">
           <div className="w-48 h-48 sm:w-96 sm:h-96 relative">
             <div className="absolute inset-0">
               {Array.from({ length: 8 }).map((_, i) => (
