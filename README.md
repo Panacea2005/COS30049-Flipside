@@ -1,96 +1,106 @@
-# 🚀 Flipside Blockchain Transaction Visualization System
+# Flipside Blockchain Transaction Visualization System
 
-📊 **Explore blockchain transactions with interactive visualization, AI insights, and real-time analytics.**  
+An advanced platform for exploring blockchain transactions through interactive visualizations, AI-powered insights, and real-time analytics.
 
-## 🔗 Live Demo & Project Links
-- **🌐 Live Deployment:** [Flipside Web Application](https://flipsidecrypto.netlify.app)
-- **🎨 Figma UI Design:** [Flipside UI/UX Wireframes](https://www.figma.com/design/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design?node-id=0-1&p=f&t=m9VYXTX506QfZIBe-0)
-- **🖥️ Figma Interactive Prototype:** [Flipside Clickable Prototype](https://www.figma.com/proto/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design?nodeid=0-1&t=m9VYXTX506QfZIBe-1)
----
+## Overview
 
-## 📖 Table of Contents
-- [About the Project](#about-the-project)
-- [Key Features](#key-features)
-- [Tech Stack](#tech-stack)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Test Account](#test-account)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
+Flipside is a comprehensive blockchain analytics platform that combines graph-based visualization with artificial intelligence to provide deep insights into blockchain transactions. Built with modern web technologies and powered by robust backend infrastructure, it offers a seamless experience for blockchain analysts, researchers, and developers.
 
----
+## Key Features
 
-## 📌 About the Project
-The **Flipside Blockchain Transaction Visualization System** is an **interactive platform** that enables users to **explore blockchain transactions** through **graph-based visualization, AI insights, and real-time tracking**.
+- **Interactive Transaction Visualization**: Explore transaction flows through D3.js-powered graph visualizations
+- **AI-Powered Analytics (Flide AI)**: Get intelligent insights into smart contract security and transaction patterns
+- **Multi-Chain Support**: Analysis capabilities for multiple blockchain networks (Ethereum, Solana, Avalanche - coming soon)
+- **Secure Authentication**: Built-in user management and profile system powered by Supabase
+- **Wallet Integration**: Direct connection with Sui Wallet for real-time transaction analysis
+- **Advanced Search**: Robust wallet address search and transaction history retrieval
 
-This system is built with **React.js, Next.js, Neo4j, and Supabase**, providing a **scalable and user-friendly experience** for blockchain analysts, security researchers, traders, and developers.
+## Technology Stack
 
----
+### Frontend
+- React.js with Next.js for robust UI rendering
+- Tailwind CSS for responsive design
+- Vite.js for optimized development experience
 
-## ✨ Key Features
-✔ **Wallet Search & Retrieval** – Search for wallet addresses to retrieve transaction history.  
-✔ **Graph-Based Visualization** – Interactive **D3.js-powered** transaction flow visualization.  
-✔ **AI-Powered Analysis (Flide AI)** – Smart contract security and transaction insights.  
-✔ **User Authentication & Profile Management** – Secure login with **Supabase Auth**.  
-✔ **Wallet Connectivity** – Connect and analyze **Sui Wallet transactions**.  
-✔ **Multi-Chain Support (Upcoming)** – Future integration for **Ethereum, Solana, Avalanche**.  
+### Backend
+- Node.js/Express.js with TypeScript
+- Neo4j for graph database operations
+- Supabase for authentication and storage
 
----
+### Blockchain Integration
+- Web3.js for blockchain interaction
+- Etherscan API integration
+- Sui.js SDK for Sui blockchain support
 
-## 🛠️ Tech Stack
+### AI & Analytics
+- Groq API for advanced analytics
+- Custom Flide AI implementation
 
-| **Category**       | **Technology** |
-|--------------------|--------------|
-| **Frontend**      | React.js, Next.js, Tailwind CSS, Vite.js |
-| **Backend**       | Node.js, Express.js, TypeScript |
-| **Database**      | Neo4j (Graph DB), Supabase (Auth & Storage) |
-| **Blockchain API** | Web3.js, Etherscan API, Sui.js SDK |
-| **AI & Analytics** | Groq API, Flide AI |
-| **Deployment**    | Netlify (Frontend), Vercel, Supabase Hosting |
+## Getting Started
 
----
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or yarn
+- Git
 
-## 📥 Installation
+### Installation
 
-### 1️⃣ Clone the Repository
+1. Clone the repository:
 ```bash
-git clone https://github.com/your-github-repo/flipside.git
+git clone https://github.com/your-username/flipside.git
 cd flipside
-2️⃣ Install Dependencies
-bash
-Copy
-Edit
+```
+
+2. Install dependencies:
+```bash
 npm install
+```
 
-bash
-Copy
-Edit
+3. Configure environment variables:
+Create a `.env` file in the root directory with the following variables:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_NEO4J_URI=your_neo4j_uri
+NEXT_PUBLIC_NEO4J_USER=your_neo4j_user
+NEXT_PUBLIC_NEO4J_PASSWORD=your_neo4j_password
+NEXT_PUBLIC_ETHERSCAN_API_KEY=your_etherscan_api_key
+NEXT_PUBLIC_SUI_WALLET_API=your_sui_wallet_api
+NEXT_PUBLIC_GROQ_API_KEY=your_groq_api_key
+```
+
+4. Start the development server:
+```bash
 npm run dev
-Open http://localhost:3000/ in your browser to view the app.
+```
 
-🖥️ Usage
-1. Search for a Wallet Address
-Enter a wallet address in the search bar to retrieve transaction history.
-Transactions are displayed in graph-based visualization with multi-hop tracing.
-2. Explore AI-Powered Insights
-Click on Flide AI to get contract security analysis and AI-driven insights on wallet activity.
-3. Connect Your Sui Wallet
-Click "Connect Wallet" to link your Sui Wallet and analyze real-time transactions.
-4. View Transactions in Tabular Format
-The dashboard displays all transactions with filtering options for dates, amounts, and wallet activity.
-🔑 Test Account
-Use the following credentials to log in and test the system:
+Visit `http://localhost:3000` to view the application.
 
-yaml
-Copy
-Edit
-📧 Email: ng.t.thien01@gmail.com
-🔑 Password: 10082005
+## Demo Access
 
-📜 License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+Test the platform using our demo account:
+- Email: ng.t.thien01@gmail.com
+- Password: 10082005
 
-📩 Contact
-For support, questions, or feedback:
-📧 Email: ng.t.thien01@gmail.com
+Note: Demo accounts have limited access to certain features.
+
+## Project Links
+
+- [Live Application](https://flipsidecrypto.netlify.app)
+- [UI/UX Wireframes](https://www.figma.com/design/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design)
+- [Interactive Prototype](https://www.figma.com/proto/y9tMd5JwtFGaeYGNZr4Cn4/Flipside-Prototype-Design)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+- Project Team: dev@flipside.com
+- Issue Tracker: [GitHub Issues](https://github.com/your-username/flipside/issues)
+
+## Acknowledgments
+
+- [D3.js](https://d3js.org/) for visualization capabilities
+- [Supabase](https://supabase.com/) for backend infrastructure
+- [Neo4j](https://neo4j.com/) for graph database solutions
