@@ -37,7 +37,20 @@ const UNISWAP_ROUTER_ABI = [
   "function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)",
 ];
 
-// Network configurations
+// Define your custom swap contract address (update this with your deployed address)
+const CUSTOM_SWAP_ADDRESS = "0x3b0eb889996c27d11218baf0e918e4c63699fcda";
+
+// Define the ABI for your custom swap contract. We assume it has a function:
+// swapCustomTokens(address fromToken, address toToken, uint256 amountIn, uint256 minAmountOut)
+// Update the CUSTOM_SWAP_ABI to match the new contract
+const CUSTOM_SWAP_ABI = [
+  "function deposit(address token, uint256 amount) external",
+  "function getContractBalance(address token) public view returns (uint256)",
+  "function swapCustomTokens(address fromToken, address toToken, uint256 amountIn, uint256 minAmountOut) external",
+  "event Deposit(address indexed token, address indexed depositor, uint256 amount)",
+  "event Swap(address indexed fromToken, address indexed toToken, address indexed user, uint256 amountIn, uint256 amountOut)",
+];
+
 const NETWORKS = {
   MAINNET: {
     name: "Ethereum Mainnet",
@@ -109,32 +122,6 @@ const NETWORKS = {
       },
     ],
   },
-  GOERLI: {
-    name: "Goerli Testnet",
-    chainId: "0x5",
-    routerAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-    wethAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
-    tokens: [
-      {
-        symbol: "ETH",
-        address: "0x0000000000000000000000000000000000000000",
-        decimals: 18,
-        name: "Ethereum",
-      },
-      {
-        symbol: "USDC",
-        address: "0x07865c6E87B9F70255377e024ace6630C1Eaa37F",
-        decimals: 6,
-        name: "USD Coin",
-      },
-      {
-        symbol: "LINK",
-        address: "0x326C977E6efc84E512bB9C30f76E30c160eD06FB",
-        decimals: 18,
-        name: "Chainlink",
-      },
-    ],
-  },
 };
 
 interface Token {
@@ -142,6 +129,7 @@ interface Token {
   address: string;
   decimals: number;
   name: string;
+  custom?: boolean; // optional flag, true if user-added custom token
 }
 
 interface Network {
@@ -167,7 +155,102 @@ const CryptoExchangePage = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [connected, setConnected] = useState<boolean>(false);
   const [customTokenAddress, setCustomTokenAddress] = useState<string>("");
+  const [customExchangeRate, setCustomExchangeRate] = useState<string>("");
+  const [selectedDepositToken, setSelectedDepositToken] =
+    useState<Token | null>(null);
+  const [depositAmount, setDepositAmount] = useState<string>("");
   const [error, setError] = useState<string>("");
+
+  const depositToContract = async (tokenAddress: string, amount: bigint) => {
+    if (!signer) return;
+
+    try {
+      const tokenContract = new Contract(tokenAddress, ERC20_ABI, signer);
+      const customSwapContract = new Contract(
+        CUSTOM_SWAP_ADDRESS,
+        CUSTOM_SWAP_ABI,
+        signer
+      );
+
+      const approveTx = await tokenContract.approve(CUSTOM_SWAP_ADDRESS, amount);
+      await approveTx.wait();
+
+      const depositTx = await customSwapContract.deposit(tokenAddress, amount);
+      await depositTx.wait();
+
+      alert("Successfully deposited tokens to CustomSwap contract!");
+    } catch (error: any) {
+      console.error("Deposit failed:", error);
+      setError(error.message || "Failed to deposit tokens");
+    }
+  };
+
+  const checkContractBalance = async (tokenAddress: string): Promise<bigint> => {
+    if (!provider) return 0n;
+
+    const customSwapContract = new Contract(
+      CUSTOM_SWAP_ADDRESS,
+      CUSTOM_SWAP_ABI,
+      provider
+    );
+    try {
+      const balance = await customSwapContract.getContractBalance(tokenAddress);
+      return balance;
+    } catch (error) {
+      console.error("Error checking contract balance:", error);
+      return 0n;
+    }
+  };
+
+  const getExchangeRate = async () => {
+    if (!provider || !fromAmount || !fromToken || !toToken) return;
+
+    // Handle custom token exchange rate
+    if (fromToken.custom && toToken.custom) {
+      const rate = customExchangeRate ? Number(customExchangeRate) : 1;
+      const simulatedToAmount = (Number(fromAmount) * rate).toFixed(6);
+      setToAmount(simulatedToAmount);
+      return;
+    }
+
+    try {
+      const router = new Contract(
+        currentNetwork.routerAddress,
+        UNISWAP_ROUTER_ABI,
+        provider
+      );
+      const amountIn = ethers.parseUnits(fromAmount, fromToken.decimals);
+      let path: string[];
+
+      if (fromToken.symbol === "ETH") {
+        path = [currentNetwork.wethAddress, toToken.address];
+      } else if (toToken.symbol === "ETH") {
+        path = [fromToken.address, currentNetwork.wethAddress];
+      } else {
+        path = [fromToken.address, currentNetwork.wethAddress, toToken.address];
+      }
+
+      const amounts = await router.getAmountsOut(amountIn, path);
+      const output = amounts[amounts.length - 1];
+
+      if (output === 0n) {
+        setError("Insufficient liquidity for this swap.");
+        setToAmount("0");
+      } else {
+        setError("");
+        const outputAmount = ethers.formatUnits(output, toToken.decimals);
+        setToAmount(outputAmount);
+      }
+    } catch (error: any) {
+      if (error.message.includes("network changed")) {
+        console.warn("Network changed during exchange rate call. Aborting update.");
+        return;
+      }
+      console.error("Error getting exchange rate:", error);
+      setError("Failed to get exchange rate. Likely no liquidity available for this pair.");
+      setToAmount("0");
+    }
+  };
 
   const switchNetwork = async (network: Network) => {
     try {
@@ -189,49 +272,90 @@ const CryptoExchangePage = () => {
     } catch (error: any) {
       if (error.code === 4902) {
         try {
+          // Different configuration based on network
+          let networkConfig;
+          if (network.chainId === "0xe705") {
+            // Linea Sepolia
+            networkConfig = {
+              chainId: network.chainId,
+              chainName: "Linea Sepolia",
+              nativeCurrency: {
+                name: "LineaETH",
+                symbol: "LineaETH",
+                decimals: 18,
+              },
+              rpcUrls: ["https://linea-sepolia.infura.io"],
+              blockExplorerUrls: ["https://sepolia.lineascan.build"],
+            };
+          } else {
+            networkConfig = {
+              chainId: network.chainId,
+              chainName: network.name,
+              nativeCurrency: {
+                name: "ETH",
+                symbol: "ETH",
+                decimals: 18,
+              },
+              rpcUrls: [
+                `https://${network.name
+                  .toLowerCase()
+                  .replace(" ", "-")}.infura.io/v3/your-infura-key`,
+              ],
+              blockExplorerUrls: [
+                `https://${network.name
+                  .toLowerCase()
+                  .replace(" ", "-")}.etherscan.io`,
+              ],
+            };
+          }
+
           await window.ethereum.request({
             method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: network.chainId,
-                chainName: network.name,
-                nativeToken: {
-                  name: "ETH",
-                  symbol: "ETH",
-                  decimals: 18,
-                },
-                rpcUrls: [
-                  `https://${network.name.toLowerCase()}.infura.io/v3/your-infura-key`,
-                ],
-                blockExplorerUrls: [
-                  `https://${network.name.toLowerCase()}.etherscan.io`,
-                ],
-              },
-            ],
+            params: [networkConfig],
           });
+
+          // After adding the network, try to switch to it
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: network.chainId }],
+          });
+
+          setCurrentNetwork(network);
+          setTokens(network.tokens);
+          if (network.tokens.length >= 2) {
+            setFromToken(network.tokens[0]);
+            setToToken(network.tokens[1]);
+          }
+          setFromAmount("");
+          setToAmount("");
         } catch (addError) {
           console.error("Failed to add network", addError);
-          setError(`Failed to add ${network.name}`);
+          setError(
+            `Failed to add ${network.name}. Please make sure you're connected to your wallet and try again.`
+          );
         }
+      } else {
+        console.error("Failed to switch network", error);
+        setError(
+          `Failed to switch to ${network.name}. Please make sure you're connected to your wallet and try again.`
+        );
       }
-      console.error("Failed to switch network", error);
-      setError(`Failed to switch to ${network.name}`);
     }
-  };  
+  };
 
   const connectWallet = async () => {
     if (window.ethereum) {
       try {
         const browserProvider = new BrowserProvider(window.ethereum);
         setProvider(browserProvider);
-  
+
         await window.ethereum.request({ method: "eth_requestAccounts" });
         const signer = await browserProvider.getSigner();
         setSigner(signer);
         const address = await signer.getAddress();
         setUserAddress(address);
         setConnected(true);
-  
+
         // Get current network and set appropriate tokens
         const networkData = await browserProvider.getNetwork();
         const chainId = "0x" + networkData.chainId.toString(16);
@@ -244,7 +368,7 @@ const CryptoExchangePage = () => {
           setFromToken(selectedNetwork.tokens[0]);
           setToToken(selectedNetwork.tokens[1]);
         }
-  
+
         window.ethereum.on("accountsChanged", handleAccountsChanged);
         window.ethereum.on("chainChanged", handleChainChanged);
       } catch (error) {
@@ -254,7 +378,7 @@ const CryptoExchangePage = () => {
     } else {
       setError("Please install MetaMask!");
     }
-  };  
+  };
 
   const handleChainChanged = async (chainId: string) => {
     const network = Object.values(NETWORKS).find((n) => n.chainId === chainId);
@@ -272,7 +396,6 @@ const CryptoExchangePage = () => {
       setToAmount("");
     }
   };
-  
 
   const handleAccountsChanged = async (accounts: string[]) => {
     if (accounts.length === 0) {
@@ -284,55 +407,64 @@ const CryptoExchangePage = () => {
     }
   };
 
-  const getExchangeRate = async () => {
-    if (!provider || !fromAmount || !fromToken || !toToken) return;
-  
-    try {
-      const router = new Contract(
-        currentNetwork.routerAddress,
-        UNISWAP_ROUTER_ABI,
-        provider
-      );
-      const amountIn = ethers.parseUnits(fromAmount, fromToken.decimals);
-      let path: string[];
-  
-      if (fromToken.symbol === "ETH") {
-        path = [currentNetwork.wethAddress, toToken.address];
-      } else if (toToken.symbol === "ETH") {
-        path = [fromToken.address, currentNetwork.wethAddress];
-      } else {
-        path = [fromToken.address, currentNetwork.wethAddress, toToken.address];
-      }
-  
-      const amounts = await router.getAmountsOut(amountIn, path);
-      const output = amounts[amounts.length - 1]; // BigInt
-  
-      if (output === 0n) {
-        setError("Insufficient liquidity for this swap.");
-        setToAmount("0");
-      } else {
-        setError("");
-        const outputAmount = ethers.formatUnits(output, toToken.decimals);
-        setToAmount(outputAmount);
-      }
-    } catch (error: any) {
-      // Check if the error is due to a network change.
-      if (error.message.includes("network changed")) {
-        console.warn("Network changed during exchange rate call. Aborting this update.");
-        return;
-      }
-      console.error("Error getting exchange rate:", error);
-      setError("Failed to get exchange rate. Likely no liquidity available for this pair.");
-      setToAmount("0");
-    }
-  };
-  
   const handleSwap = async () => {
-    if (!signer || !fromToken || !toToken || !fromAmount) return;
+    if (!signer || !fromToken || !toToken || !fromAmount || !userAddress) {
+      setError("Please connect wallet and select tokens");
+      return;
+    }
+    
     setLoading(true);
     setError("");
-  
+
     try {
+      // Handle custom token swap
+      if (fromToken.custom && toToken.custom) {
+        const rate = customExchangeRate ? Number(customExchangeRate) : 1;
+        const amountInParsed = ethers.parseUnits(fromAmount, fromToken.decimals);
+        const outputAmountNumber = Number(fromAmount) * rate;
+        const expectedOutput = ethers.parseUnits(
+          outputAmountNumber.toString(),
+          toToken.decimals
+        );
+        const minAmountOut = (expectedOutput * 95n) / 100n;
+
+        // Check contract balance first
+        const contractBalance = await checkContractBalance(toToken.address);
+        if (contractBalance < expectedOutput) {
+          const formattedBalance = ethers.formatUnits(contractBalance, toToken.decimals);
+          setError(
+            `Contract balance too low. Current: ${formattedBalance} ${toToken.symbol}. Please fund the contract first.`
+          );
+          return;
+        }
+
+        const tokenContract = new Contract(fromToken.address, ERC20_ABI, signer);
+        const approveTx = await tokenContract.approve(
+          CUSTOM_SWAP_ADDRESS,
+          amountInParsed
+        );
+        await approveTx.wait();
+
+        const customSwapContract = new Contract(
+          CUSTOM_SWAP_ADDRESS,
+          CUSTOM_SWAP_ABI,
+          signer
+        );
+        const tx = await customSwapContract.swapCustomTokens(
+          fromToken.address,
+          toToken.address,
+          amountInParsed,
+          minAmountOut
+        );
+        await tx.wait();
+
+        setFromAmount("");
+        setToAmount("");
+        alert("Custom token swap successful!");
+        return;
+      }
+
+      // Handle regular swap
       const router = new Contract(
         currentNetwork.routerAddress,
         UNISWAP_ROUTER_ABI,
@@ -345,11 +477,11 @@ const CryptoExchangePage = () => {
           : toToken.symbol === "ETH"
           ? [fromToken.address, currentNetwork.wethAddress]
           : [fromToken.address, currentNetwork.wethAddress, toToken.address];
-  
+
       const amounts = await router.getAmountsOut(amountIn, path);
-      const amountOutMin = (amounts[amounts.length - 1] * 95n) / 100n; // 5% slippage
-      const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes
-  
+      const amountOutMin = (amounts[amounts.length - 1] * 95n) / 100n;
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+
       let tx;
       if (fromToken.symbol === "ETH") {
         tx = await router.swapExactETHForTokens(
@@ -359,61 +491,127 @@ const CryptoExchangePage = () => {
           deadline,
           { value: amountIn }
         );
-      } else if (toToken.symbol === "ETH") {
-        const tokenContract = new Contract(fromToken.address, ERC20_ABI, signer);
-        const allowance = await tokenContract.allowance(userAddress, currentNetwork.routerAddress);
-        if (allowance < amountIn) {
-          const approveTx = await tokenContract.approve(currentNetwork.routerAddress, amountIn);
-          await approveTx.wait();
-        }
-        tx = await router.swapExactTokensForETH(
-          amountIn,
-          amountOutMin,
-          path,
-          userAddress,
-          deadline
-        );
       } else {
         const tokenContract = new Contract(fromToken.address, ERC20_ABI, signer);
-        const allowance = await tokenContract.allowance(userAddress, currentNetwork.routerAddress);
+        const allowance = await tokenContract.allowance(
+          userAddress,
+          currentNetwork.routerAddress
+        );
         if (allowance < amountIn) {
-          const approveTx = await tokenContract.approve(currentNetwork.routerAddress, amountIn);
+          const approveTx = await tokenContract.approve(
+            currentNetwork.routerAddress,
+            amountIn
+          );
           await approveTx.wait();
         }
-        tx = await router.swapExactTokensForTokens(
-          amountIn,
-          amountOutMin,
-          path,
-          userAddress,
-          deadline
-        );
+
+        if (toToken.symbol === "ETH") {
+          tx = await router.swapExactTokensForETH(
+            amountIn,
+            amountOutMin,
+            path,
+            userAddress,
+            deadline
+          );
+        } else {
+          tx = await router.swapExactTokensForTokens(
+            amountIn,
+            amountOutMin,
+            path,
+            userAddress,
+            deadline
+          );
+        }
       }
-  
+
       await tx.wait();
       setFromAmount("");
       setToAmount("");
       setError("");
       alert("Swap successful!");
     } catch (error: any) {
-      // Handle network change errors gracefully
-      if (error.message.includes("network changed")) {
-        console.warn("Network changed during swap call. Please try again after the switch completes.");
-        setError("Network changed. Please try again.");
-      } else {
-        console.error("Swap failed:", error);
-        setError(error.message || "Swap failed");
-      }
+      console.error("Swap failed:", error);
+      setError(error.message || "Swap failed");
     } finally {
       setLoading(false);
     }
   };
-  
 
   useEffect(() => {
     if (fromAmount && fromToken && toToken) {
       getExchangeRate();
     }
   }, [fromAmount, fromToken, toToken]);
+
+  const getTokenIcon = (token: Token): string => {
+    // Common token symbols
+    const TOKEN_ICONS: { [key: string]: string } = {
+      // Native Tokens
+      'ETH': '/eth.svg', // Ethereum logo placeholder
+      'SepoliaETH': '/sepolia.svg', // Sepolia ETH logo placeholder
+      
+      // Stablecoins
+      'USDT': '/usdt.svg', // Tether logo placeholder
+      'USDC': '/usdc.svg', // USDC logo placeholder
+      'DAI': '/dai.svg', // DAI logo placeholder
+      
+      // Other major tokens
+      'WBTC': '/wbtc.png', // Wrapped BTC logo placeholder
+      'LINK': '/link.svg', // Chainlink logo placeholder
+      'WETH': '/eth.svg', // Wrapped ETH logo placeholder
+    };
+  
+    // Add network-specific icons
+    if (token.symbol === 'ETH') {
+      // Check if it's a testnet ETH by looking at the token name
+      if (token.name.includes('Sepolia')) {
+        return TOKEN_ICONS['SepoliaETH'];
+      }
+    }
+  
+    // Return the matching icon or a default icon for custom/unknown tokens
+    return TOKEN_ICONS[token.symbol] || '/api/placeholder/24/24';
+  };
+  
+  // Token display components
+  const TokenOption = ({ token }: { token: Token }) => (
+    <div className="flex items-center gap-2">
+      <div className="relative w-6 h-6">
+        <img
+          src={getTokenIcon(token)}
+          alt={token.symbol}
+          className="w-6 h-6 rounded-full"
+        />
+        {token.custom && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
+               title="Custom Token" />
+        )}
+      </div>
+      <span className="flex items-center gap-1">
+        {token.symbol}
+        {token.custom && (
+          <span className="text-xs text-gray-400">(Custom)</span>
+        )}
+      </span>
+    </div>
+  );
+  
+  const TokenDisplay = ({ token }: { token: Token }) => (
+    <div className="flex items-center gap-2">
+      <div className="relative w-6 h-6">
+        <img
+          src={getTokenIcon(token)}
+          alt={token.symbol}
+          className="w-6 h-6 rounded-full"
+        />
+        {token.custom && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
+               title="Custom Token" />
+        )}
+      </div>
+      <span>{token.symbol}</span>
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 py-16">
@@ -442,7 +640,7 @@ const CryptoExchangePage = () => {
           )}
 
           <Tabs defaultValue="sepolia" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger
                 value="mainnet"
                 onClick={() => switchNetwork(NETWORKS.MAINNET)}
@@ -454,12 +652,6 @@ const CryptoExchangePage = () => {
                 onClick={() => switchNetwork(NETWORKS.SEPOLIA)}
               >
                 Sepolia
-              </TabsTrigger>
-              <TabsTrigger
-                value="goerli"
-                onClick={() => switchNetwork(NETWORKS.GOERLI)}
-              >
-                Goerli
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -477,8 +669,10 @@ const CryptoExchangePage = () => {
                   }
                 }}
               >
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Select token" />
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Select token">
+                    {fromToken && <TokenDisplay token={fromToken} />}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {tokens.map((token) => (
@@ -487,7 +681,7 @@ const CryptoExchangePage = () => {
                       value={token.symbol}
                       disabled={token.symbol === toToken?.symbol}
                     >
-                      {token.symbol}
+                      <TokenOption token={token} />
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -535,8 +729,10 @@ const CryptoExchangePage = () => {
                   }
                 }}
               >
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Select token" />
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Select token">
+                    {toToken && <TokenDisplay token={toToken} />}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {tokens.map((token) => (
@@ -545,7 +741,7 @@ const CryptoExchangePage = () => {
                       value={token.symbol}
                       disabled={token.symbol === fromToken?.symbol}
                     >
-                      {token.symbol}
+                      <TokenOption token={token} />
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -558,6 +754,19 @@ const CryptoExchangePage = () => {
                 className="flex-1 bg-gray-50"
               />
             </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium mb-1">
+              Custom Exchange Rate (for custom tokens)
+            </label>
+            <Input
+              type="number"
+              placeholder="Enter exchange rate (e.g. 1.23)"
+              value={customExchangeRate}
+              onChange={(e) => setCustomExchangeRate(e.target.value)}
+              className="w-full"
+            />
           </div>
 
           <div className="space-y-2">
@@ -585,6 +794,58 @@ const CryptoExchangePage = () => {
 
           <div className="mt-6 border-t pt-4">
             <label className="block text-sm font-medium mb-2">
+              Fund Contract (for custom tokens)
+            </label>
+            <div className="flex gap-2">
+              <Select
+                value={selectedDepositToken?.symbol}
+                onValueChange={(value) => {
+                  const token = tokens.find((t) => t.symbol === value);
+                  setSelectedDepositToken(token || null);
+                }}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Select token">
+                    {selectedDepositToken && <TokenDisplay token={selectedDepositToken} />}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {tokens
+                    .filter((t) => t.custom)
+                    .map((token) => (
+                      <SelectItem key={token.symbol} value={token.symbol}>
+                        <TokenOption token={token} />
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                placeholder="Amount to deposit"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                onClick={async () => {
+                  if (!selectedDepositToken || !depositAmount) return;
+
+                  const amount = ethers.parseUnits(
+                    depositAmount,
+                    selectedDepositToken.decimals
+                  );
+                  await depositToContract(selectedDepositToken.address, amount);
+                  setDepositAmount("");
+                }}
+                disabled={!selectedDepositToken || !depositAmount || loading}
+              >
+                Deposit
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-6 border-t pt-4">
+            <label className="block text-sm font-medium mb-2">
               Add Custom Token
             </label>
             <div className="flex gap-2">
@@ -608,23 +869,43 @@ const CryptoExchangePage = () => {
                       ERC20_ABI,
                       provider
                     );
-                    const [symbol, decimals, name] = await Promise.all([
-                      tokenContract.symbol(),
-                      tokenContract.decimals(),
-                      tokenContract.name(),
-                    ]);
+                    let symbol: string;
+                    let decimals: number;
+                    let name: string;
+
+                    try {
+                      symbol = await tokenContract.symbol();
+                    } catch (e) {
+                      throw new Error(
+                        "Token contract does not implement symbol()"
+                      );
+                    }
+
+                    try {
+                      decimals = await tokenContract.decimals();
+                    } catch (e) {
+                      decimals = 18;
+                    }
+
+                    try {
+                      name = await tokenContract.name();
+                    } catch (e) {
+                      name = symbol;
+                    }
 
                     const newToken = {
                       symbol,
                       address: customTokenAddress,
                       decimals,
                       name,
+                      custom: true,
                     };
 
                     setTokens((prev) => [...prev, newToken]);
                     setCustomTokenAddress("");
                     setError("");
                   } catch (error) {
+                    console.error("Error adding token:", error);
                     setError("Failed to add token");
                   } finally {
                     setLoading(false);
