@@ -10,9 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowDownUp, Wallet, AlertCircle } from "lucide-react";
+import {
+  ArrowDownUp,
+  Wallet,
+  AlertCircle,
+  ExternalLink,
+  Coins,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 declare global {
   interface Window {
@@ -109,16 +116,16 @@ const NETWORKS = {
         name: "Tether USD",
       },
       {
-        symbol: "DAI",
-        address: "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6",
-        decimals: 18,
-        name: "Dai Stablecoin",
-      },
-      {
         symbol: "LINK",
         address: "0x779877A7B0D9E8603169DdbD7836e478b4624789",
         decimals: 18,
         name: "Chainlink",
+      },
+      {
+        symbol: "UNI",
+        address: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+        decimals: 18,
+        name: "Uniswap",
       },
     ],
   },
@@ -129,6 +136,7 @@ interface Token {
   address: string;
   decimals: number;
   name: string;
+  chainId?: number;
   custom?: boolean; // optional flag, true if user-added custom token
 }
 
@@ -172,7 +180,10 @@ const CryptoExchangePage = () => {
         signer
       );
 
-      const approveTx = await tokenContract.approve(CUSTOM_SWAP_ADDRESS, amount);
+      const approveTx = await tokenContract.approve(
+        CUSTOM_SWAP_ADDRESS,
+        amount
+      );
       await approveTx.wait();
 
       const depositTx = await customSwapContract.deposit(tokenAddress, amount);
@@ -185,7 +196,9 @@ const CryptoExchangePage = () => {
     }
   };
 
-  const checkContractBalance = async (tokenAddress: string): Promise<bigint> => {
+  const checkContractBalance = async (
+    tokenAddress: string
+  ): Promise<bigint> => {
     if (!provider) return 0n;
 
     const customSwapContract = new Contract(
@@ -243,11 +256,15 @@ const CryptoExchangePage = () => {
       }
     } catch (error: any) {
       if (error.message.includes("network changed")) {
-        console.warn("Network changed during exchange rate call. Aborting update.");
+        console.warn(
+          "Network changed during exchange rate call. Aborting update."
+        );
         return;
       }
       console.error("Error getting exchange rate:", error);
-      setError("Failed to get exchange rate. Likely no liquidity available for this pair.");
+      setError(
+        "Failed to get exchange rate. Likely no liquidity available for this pair."
+      );
       setToAmount("0");
     }
   };
@@ -412,7 +429,7 @@ const CryptoExchangePage = () => {
       setError("Please connect wallet and select tokens");
       return;
     }
-    
+
     setLoading(true);
     setError("");
 
@@ -420,7 +437,10 @@ const CryptoExchangePage = () => {
       // Handle custom token swap
       if (fromToken.custom && toToken.custom) {
         const rate = customExchangeRate ? Number(customExchangeRate) : 1;
-        const amountInParsed = ethers.parseUnits(fromAmount, fromToken.decimals);
+        const amountInParsed = ethers.parseUnits(
+          fromAmount,
+          fromToken.decimals
+        );
         const outputAmountNumber = Number(fromAmount) * rate;
         const expectedOutput = ethers.parseUnits(
           outputAmountNumber.toString(),
@@ -431,14 +451,21 @@ const CryptoExchangePage = () => {
         // Check contract balance first
         const contractBalance = await checkContractBalance(toToken.address);
         if (contractBalance < expectedOutput) {
-          const formattedBalance = ethers.formatUnits(contractBalance, toToken.decimals);
+          const formattedBalance = ethers.formatUnits(
+            contractBalance,
+            toToken.decimals
+          );
           setError(
             `Contract balance too low. Current: ${formattedBalance} ${toToken.symbol}. Please fund the contract first.`
           );
           return;
         }
 
-        const tokenContract = new Contract(fromToken.address, ERC20_ABI, signer);
+        const tokenContract = new Contract(
+          fromToken.address,
+          ERC20_ABI,
+          signer
+        );
         const approveTx = await tokenContract.approve(
           CUSTOM_SWAP_ADDRESS,
           amountInParsed
@@ -492,7 +519,11 @@ const CryptoExchangePage = () => {
           { value: amountIn }
         );
       } else {
-        const tokenContract = new Contract(fromToken.address, ERC20_ABI, signer);
+        const tokenContract = new Contract(
+          fromToken.address,
+          ERC20_ABI,
+          signer
+        );
         const allowance = await tokenContract.allowance(
           userAddress,
           currentNetwork.routerAddress
@@ -543,36 +574,38 @@ const CryptoExchangePage = () => {
     }
   }, [fromAmount, fromToken, toToken]);
 
-  const getTokenIcon = (token: Token): string => {
-    // Common token symbols
+  const getTokenIcon = (token: Token, currentNetwork?: Network): string => {
+    // Pre-defined icons for known tokens
     const TOKEN_ICONS: { [key: string]: string } = {
-      // Native Tokens
-      'ETH': '/eth.svg', // Ethereum logo placeholder
-      'SepoliaETH': '/sepolia.svg', // Sepolia ETH logo placeholder
-      
-      // Stablecoins
-      'USDT': '/usdt.svg', // Tether logo placeholder
-      'USDC': '/usdc.svg', // USDC logo placeholder
-      'DAI': '/dai.svg', // DAI logo placeholder
-      
-      // Other major tokens
-      'WBTC': '/wbtc.png', // Wrapped BTC logo placeholder
-      'LINK': '/link.svg', // Chainlink logo placeholder
-      'WETH': '/eth.svg', // Wrapped ETH logo placeholder
+      ETH: "/eth.svg",
+      SepoliaETH: "/sepolia.svg",
+      USDT: "/usdt.svg",
+      USDC: "/usdc.svg",
+      UNI: "/uni.svg",
+      DAI: "/dai.svg",
+      WBTC: "/wbtc.png",
+      LINK: "/link.svg",
+      WETH: "/eth.svg",
     };
-  
-    // Add network-specific icons
-    if (token.symbol === 'ETH') {
-      // Check if it's a testnet ETH by looking at the token name
-      if (token.name.includes('Sepolia')) {
-        return TOKEN_ICONS['SepoliaETH'];
+
+    // If it's a custom token, auto-generate the icon URL
+    if (token.custom) {
+      // Use the TrustWallet repository for Ethereum tokens
+      // (Ensure token.address is in checksum or lower-case format as needed)
+      return `/hero-image.svg`;
+    }
+
+    // Special handling for network-specific tokens (e.g., Sepolia ETH)
+    if (token.symbol === "ETH" && currentNetwork) {
+      if (currentNetwork.chainId === "0xaa36a7") {
+        return TOKEN_ICONS["SepoliaETH"];
       }
     }
-  
-    // Return the matching icon or a default icon for custom/unknown tokens
-    return TOKEN_ICONS[token.symbol] || '/api/placeholder/24/24';
+
+    // Fallback to the pre-defined icon or a default placeholder
+    return TOKEN_ICONS[token.symbol] || "/api/placeholder/24/24";
   };
-  
+
   // Token display components
   const TokenOption = ({ token }: { token: Token }) => (
     <div className="flex items-center gap-2">
@@ -583,8 +616,10 @@ const CryptoExchangePage = () => {
           className="w-6 h-6 rounded-full"
         />
         {token.custom && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
-               title="Custom Token" />
+          <div
+            className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white"
+            title="Custom Token"
+          />
         )}
       </div>
       <span className="flex items-center gap-1">
@@ -595,7 +630,7 @@ const CryptoExchangePage = () => {
       </span>
     </div>
   );
-  
+
   const TokenDisplay = ({ token }: { token: Token }) => (
     <div className="flex items-center gap-2">
       <div className="relative w-6 h-6">
@@ -605,8 +640,10 @@ const CryptoExchangePage = () => {
           className="w-6 h-6 rounded-full"
         />
         {token.custom && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
-               title="Custom Token" />
+          <div
+            className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white"
+            title="Custom Token"
+          />
         )}
       </div>
       <span>{token.symbol}</span>
@@ -614,164 +651,192 @@ const CryptoExchangePage = () => {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 py-16">
-      <Card className="w-full max-w-2xl mx-auto shadow-lg mt-16">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Crypto Exchange</CardTitle>
-          {connected ? (
-            <div className="text-sm text-gray-500 mt-2">
-              Connected: {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
-              <div>Network: {currentNetwork.name}</div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 sm:p-6">
+      <div className="max-w-4xl mx-auto mt-12 sm:mt-16 px-4">
+        <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
+          <CardHeader className="space-y-4 sm:space-y-6 pb-4 sm:pb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+              <CardTitle className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Crypto Exchange
+              </CardTitle>
+              {connected ? (
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mt-4 sm:mt-0">
+                  <Badge
+                    variant="outline"
+                    className="py-1 sm:py-2 px-2 sm:px-4"
+                  >
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <span className="text-xs sm:text-base font-medium">
+                        {currentNetwork.name}
+                      </span>
+                    </div>
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    className="group relative overflow-hidden border-2 hover:border-purple-500 transition-colors duration-300"
+                    onClick={() =>
+                      window.open(
+                        `https://etherscan.io/address/${userAddress}`,
+                        "_blank"
+                      )
+                    }
+                  >
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" />
+                      <span className="font-medium text-xs sm:text-sm">
+                        {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
+                      </span>
+                      <ExternalLink className="w-4 h-4" />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={connectWallet}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
+                >
+                  <Wallet className="mr-2 h-5 w-5" />
+                  Connect Wallet
+                </Button>
+              )}
             </div>
-          ) : (
-            <Button onClick={connectWallet} className="mt-4" variant="outline">
-              <Wallet className="mr-2 h-4 w-4" />
-              Connect Wallet
-            </Button>
-          )}
-        </CardHeader>
 
-        <CardContent className="space-y-6 p-8 bg-white rounded-lg">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+            <Tabs defaultValue="sepolia" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 p-1 bg-gray-100 rounded-lg">
+                <TabsTrigger
+                  value="mainnet"
+                  onClick={() => switchNetwork(NETWORKS.MAINNET)}
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                >
+                  Mainnet
+                </TabsTrigger>
+                <TabsTrigger
+                  value="sepolia"
+                  onClick={() => switchNetwork(NETWORKS.SEPOLIA)}
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                >
+                  Sepolia
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </CardHeader>
 
-          <Tabs defaultValue="sepolia" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger
-                value="mainnet"
-                onClick={() => switchNetwork(NETWORKS.MAINNET)}
-              >
-                Mainnet
-              </TabsTrigger>
-              <TabsTrigger
-                value="sepolia"
-                onClick={() => switchNetwork(NETWORKS.SEPOLIA)}
-              >
-                Sepolia
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <CardContent className="space-y-4 sm:space-y-8 p-4 sm:p-8">
+            {error && (
+              <Alert variant="destructive" className="border-red-200 bg-red-50">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <div className="space-y-4">
-            <label className="text-sm font-medium">From</label>
-            <div className="flex gap-2">
-              <Select
-                value={fromToken?.symbol}
-                onValueChange={(value) => {
-                  const token = tokens.find((t) => t.symbol === value);
-                  setFromToken(token || null);
-                  if (token?.symbol === toToken?.symbol) {
-                    setToToken(null);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Select token">
-                    {fromToken && <TokenDisplay token={fromToken} />}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {tokens.map((token) => (
-                    <SelectItem
-                      key={token.symbol + token.address}
-                      value={token.symbol}
-                      disabled={token.symbol === toToken?.symbol}
-                    >
-                      <TokenOption token={token} />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                placeholder="0.0"
-                value={fromAmount}
-                onChange={(e) => setFromAmount(e.target.value)}
-                className="flex-1"
-                min="0"
-                step="0.000000000000000001"
-              />
+            <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl shadow-inner">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  From
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Select
+                    value={fromToken?.symbol}
+                    onValueChange={(value) => {
+                      const token = tokens.find((t) => t.symbol === value);
+                      setFromToken(token || null);
+                      if (token?.symbol === toToken?.symbol) {
+                        setToToken(null);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full sm:w-[160px] bg-white">
+                      <SelectValue placeholder="Select token">
+                        {fromToken && <TokenDisplay token={fromToken} />}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {tokens.map((token) => (
+                        <SelectItem
+                          key={token.symbol + token.address}
+                          value={token.symbol}
+                          disabled={token.symbol === toToken?.symbol}
+                        >
+                          <TokenOption token={token} />
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    placeholder="0.0"
+                    value={fromAmount}
+                    onChange={(e) => setFromAmount(e.target.value)}
+                    className="flex-1 bg-white border-2 focus:border-purple-500 transition-colors duration-300"
+                    min="0"
+                    step="0.000000000000000001"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    const tempToken = fromToken;
+                    setFromToken(toToken);
+                    setToToken(tempToken);
+                    setFromAmount("");
+                    setToAmount("");
+                  }}
+                  className="rounded-full w-12 h-12 border-2 hover:border-purple-500 hover:bg-purple-50 transition-all duration-300"
+                  disabled={!fromToken || !toToken}
+                >
+                  <ArrowDownUp className="h-6 w-6" />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">To</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Select
+                    value={toToken?.symbol}
+                    onValueChange={(value) => {
+                      const token = tokens.find((t) => t.symbol === value);
+                      setToToken(token || null);
+                      if (token?.symbol === fromToken?.symbol) {
+                        setFromToken(null);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full sm:w-[160px] bg-white">
+                      <SelectValue placeholder="Select token">
+                        {toToken && <TokenDisplay token={toToken} />}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {tokens.map((token) => (
+                        <SelectItem
+                          key={token.symbol + token.address}
+                          value={token.symbol}
+                          disabled={token.symbol === fromToken?.symbol}
+                        >
+                          <TokenOption token={token} />
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    placeholder="0.0"
+                    value={toAmount}
+                    readOnly
+                    className="flex-1 bg-gray-50 border-2"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="flex justify-center">
             <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                const tempToken = fromToken;
-                setFromToken(toToken);
-                setToToken(tempToken);
-                setFromAmount("");
-                setToAmount("");
-              }}
-              className="rounded-full"
-              disabled={!fromToken || !toToken}
-            >
-              <ArrowDownUp className="h-6 w-6" />
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            <label className="text-sm font-medium">To</label>
-            <div className="flex gap-2">
-              <Select
-                value={toToken?.symbol}
-                onValueChange={(value) => {
-                  const token = tokens.find((t) => t.symbol === value);
-                  setToToken(token || null);
-                  if (token?.symbol === fromToken?.symbol) {
-                    setFromToken(null);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Select token">
-                    {toToken && <TokenDisplay token={toToken} />}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {tokens.map((token) => (
-                    <SelectItem
-                      key={token.symbol + token.address}
-                      value={token.symbol}
-                      disabled={token.symbol === fromToken?.symbol}
-                    >
-                      <TokenOption token={token} />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                placeholder="0.0"
-                value={toAmount}
-                readOnly
-                className="flex-1 bg-gray-50"
-              />
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <label className="block text-sm font-medium mb-1">
-              Custom Exchange Rate (for custom tokens)
-            </label>
-            <Input
-              type="number"
-              placeholder="Enter exchange rate (e.g. 1.23)"
-              value={customExchangeRate}
-              onChange={(e) => setCustomExchangeRate(e.target.value)}
-              className="w-full"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Button
-              className="w-full"
+              className="w-full h-12 text-lg font-medium bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-300 hover:shadow-lg"
               onClick={handleSwap}
               disabled={
                 !connected || !fromAmount || loading || !fromToken || !toToken
@@ -783,142 +848,159 @@ const CryptoExchangePage = () => {
                 ? "Swapping..."
                 : "Swap"}
             </Button>
+
             {fromToken && toToken && fromAmount && toAmount && (
-              <div className="text-sm text-gray-500 text-center">
-                Rate: 1 {fromToken.symbol} ={" "}
-                {(Number(toAmount) / Number(fromAmount)).toFixed(6)}{" "}
+              <div className="text-sm text-gray-600 text-center bg-gray-50 p-2 sm:p-3 rounded-lg">
+                <span className="font-medium">Rate:</span> 1 {fromToken.symbol}{" "}
+                = {(Number(toAmount) / Number(fromAmount)).toFixed(6)}{" "}
                 {toToken.symbol}
               </div>
             )}
-          </div>
 
-          <div className="mt-6 border-t pt-4">
-            <label className="block text-sm font-medium mb-2">
-              Fund Contract (for custom tokens)
-            </label>
-            <div className="flex gap-2">
-              <Select
-                value={selectedDepositToken?.symbol}
-                onValueChange={(value) => {
-                  const token = tokens.find((t) => t.symbol === value);
-                  setSelectedDepositToken(token || null);
-                }}
-              >
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Select token">
-                    {selectedDepositToken && <TokenDisplay token={selectedDepositToken} />}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {tokens
-                    .filter((t) => t.custom)
-                    .map((token) => (
-                      <SelectItem key={token.symbol} value={token.symbol}>
-                        <TokenOption token={token} />
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                placeholder="Amount to deposit"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={async () => {
-                  if (!selectedDepositToken || !depositAmount) return;
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl">
+                <div className="flex flex-col sm:flex-row items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    Fund Contract
+                  </h3>
+                  <Badge variant="outline" className="bg-purple-50">
+                    Custom Tokens Only
+                  </Badge>
+                </div>
 
-                  const amount = ethers.parseUnits(
-                    depositAmount,
-                    selectedDepositToken.decimals
-                  );
-                  await depositToContract(selectedDepositToken.address, amount);
-                  setDepositAmount("");
-                }}
-                disabled={!selectedDepositToken || !depositAmount || loading}
-              >
-                Deposit
-              </Button>
-            </div>
-          </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Select
+                    value={selectedDepositToken?.symbol}
+                    onValueChange={(value) => {
+                      const token = tokens.find((t) => t.symbol === value);
+                      setSelectedDepositToken(token || null);
+                    }}
+                  >
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select token">
+                        {selectedDepositToken && (
+                          <TokenDisplay token={selectedDepositToken} />
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tokens
+                        .filter((t) => t.custom)
+                        .map((token) => (
+                          <SelectItem key={token.symbol} value={token.symbol}>
+                            <TokenOption token={token} />
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
 
-          <div className="mt-6 border-t pt-4">
-            <label className="block text-sm font-medium mb-2">
-              Add Custom Token
-            </label>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="Token contract address"
-                value={customTokenAddress}
-                onChange={(e) => setCustomTokenAddress(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={async () => {
-                  if (!ethers.isAddress(customTokenAddress)) {
-                    setError("Invalid token address");
-                    return;
-                  }
-                  setLoading(true);
-                  try {
-                    const tokenContract = new Contract(
-                      customTokenAddress,
-                      ERC20_ABI,
-                      provider
-                    );
-                    let symbol: string;
-                    let decimals: number;
-                    let name: string;
+                  <Input
+                    type="number"
+                    placeholder="Amount to deposit"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="w-full bg-white"
+                  />
 
-                    try {
-                      symbol = await tokenContract.symbol();
-                    } catch (e) {
-                      throw new Error(
-                        "Token contract does not implement symbol()"
+                  <Button
+                    onClick={async () => {
+                      if (!selectedDepositToken || !depositAmount) return;
+                      const amount = ethers.parseUnits(
+                        depositAmount,
+                        selectedDepositToken.decimals
                       );
+                      await depositToContract(
+                        selectedDepositToken.address,
+                        amount
+                      );
+                      setDepositAmount("");
+                    }}
+                    disabled={
+                      !selectedDepositToken || !depositAmount || loading
                     }
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                  >
+                    <Coins className="mr-2 h-4 w-4" />
+                    Deposit
+                  </Button>
+                </div>
+              </div>
 
-                    try {
-                      decimals = await tokenContract.decimals();
-                    } catch (e) {
-                      decimals = 18;
-                    }
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl">
+                  <h3 className="font-semibold text-gray-700">
+                    Add Custom Token
+                  </h3>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Token contract address"
+                      value={customTokenAddress}
+                      onChange={(e) => setCustomTokenAddress(e.target.value)}
+                      className="flex-1 bg-white"
+                    />
+                    <Button
+                      onClick={async () => {
+                        if (!ethers.isAddress(customTokenAddress)) {
+                          setError("Invalid token address");
+                          return;
+                        }
+                        setLoading(true);
+                        try {
+                          const tokenContract = new Contract(
+                            customTokenAddress,
+                            ERC20_ABI,
+                            provider
+                          );
+                          const [symbol, decimals, name] = await Promise.all([
+                            tokenContract.symbol(),
+                            tokenContract.decimals(),
+                            tokenContract.name(),
+                          ]);
 
-                    try {
-                      name = await tokenContract.name();
-                    } catch (e) {
-                      name = symbol;
-                    }
+                          const newToken = {
+                            symbol,
+                            address: customTokenAddress,
+                            decimals,
+                            name,
+                            custom: true,
+                          };
 
-                    const newToken = {
-                      symbol,
-                      address: customTokenAddress,
-                      decimals,
-                      name,
-                      custom: true,
-                    };
+                          setTokens((prev) => [...prev, newToken]);
+                          setCustomTokenAddress("");
+                          setError("");
+                        } catch (error) {
+                          console.error("Error adding token:", error);
+                          setError("Failed to add token");
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading || !customTokenAddress}
+                      className="bg-gradient-to-r from-purple-500 to-pink-500"
+                    >
+                      {loading ? "Adding..." : "Add Token"}
+                    </Button>
+                  </div>
+                </div>
 
-                    setTokens((prev) => [...prev, newToken]);
-                    setCustomTokenAddress("");
-                    setError("");
-                  } catch (error) {
-                    console.error("Error adding token:", error);
-                    setError("Failed to add token");
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                disabled={loading || !customTokenAddress}
-              >
-                {loading ? "Adding..." : "Add Token"}
-              </Button>
+                <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl">
+                  <h3 className="font-semibold text-gray-700">
+                    Custom Exchange Rate
+                  </h3>
+                  <Input
+                    type="number"
+                    placeholder="Enter rate (e.g. 1.23)"
+                    value={customExchangeRate}
+                    onChange={(e) => setCustomExchangeRate(e.target.value)}
+                    className="w-full bg-white"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

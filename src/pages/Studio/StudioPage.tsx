@@ -5,8 +5,9 @@ import { StudioTabs } from './components/StudioTabs';
 import { OverviewPage } from './components/Overview/OverviewPage';
 import { VisualizationPage } from './components/Visualization/VisualizationPage';
 import { TransactionHistory } from './components/TransactionHistory/TransactionHistory';
+import { MarketDashboard } from './components/Market/MarketDashboard';
 
-type TabType = 'overview' | 'visualization' | 'transactions';
+type TabType = 'overview' | 'visualization' | 'transactions' | 'market';
 
 export const StudioPage = () => {
   const { isLoggedIn, loading } = useAuth();
@@ -28,6 +29,8 @@ export const StudioPage = () => {
         return <VisualizationPage />;
       case 'transactions':
         return <TransactionHistory />;
+      case 'market':
+        return <MarketDashboard />;
       default:
         return <OverviewPage />;
     }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { ethers } from "ethers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,9 +33,10 @@ import {
   ConnectButton,
   useCurrentAccount,
   useDisconnectWallet,
-} from "@mysten/dapp-kit"; // Import ConnectButton and useCurrentAccount
+} from "@mysten/dapp-kit"; // Sui wallet integration
 
 export const FlidePage = () => {
+  // Chat & file upload state
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -43,17 +45,46 @@ export const FlidePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showInitialMessage, setShowInitialMessage] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(
-    null
-  );
-  const [selectedModel, setSelectedModel] = useState(
-    "deepseek-r1-distill-llama-70b"
-  ); // Default model
+  const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("deepseek-r1-distill-llama-70b");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const account = useCurrentAccount(); // Get the connected account
+  // Sui wallet
+  const account = useCurrentAccount();
   const disconnect = useDisconnectWallet();
+
+  // MetaMask wallet state
+  const [metaAccount, setMetaAccount] = useState<string>("");
+  const [metaConnected, setMetaConnected] = useState<boolean>(false);
+  const [metaProvider, setMetaProvider] = useState<ethers.BrowserProvider | null>(null);
+
+  const connectMetaMask = async () => {
+    if (window.ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        setMetaProvider(provider);
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        setMetaAccount(address);
+        setMetaConnected(true);
+      } catch (error) {
+        console.error("MetaMask connection error:", error);
+        toast({
+          title: "MetaMask Connection Error",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "MetaMask Not Installed",
+        description: "Please install MetaMask to connect.",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     // Load chat history on component mount
@@ -207,7 +238,7 @@ ${
         console.log("Analysis response:", response);
         setUploadedFileContent(null);
       } else {
-        response = await chatService.sendMessage([userMessage], selectedModel); // Pass selected model
+        response = await chatService.sendMessage([userMessage], selectedModel);
       }
 
       // Gradually display the bot's response
@@ -216,14 +247,12 @@ ${
       for (let i = 0; i < words.length; i++) {
         displayedResponse += words[i] + " ";
         setMessages((prev) =>
-          prev
-            .slice(0, -1)
-            .concat({ role: "assistant", content: displayedResponse })
+          prev.slice(0, -1).concat({ role: "assistant", content: displayedResponse })
         );
         if (scrollAreaRef.current) {
           scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
         }
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Adjust the delay as needed
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
 
       if (!currentChatId) {
@@ -245,8 +274,7 @@ ${
       console.error("Error in handleSend:", error);
       toast({
         title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to send message.",
+        description: error instanceof Error ? error.message : "Failed to send message.",
         variant: "destructive",
       });
     } finally {
@@ -261,9 +289,7 @@ ${
     }
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
@@ -312,11 +338,7 @@ ${
   const Sidebar = () => (
     <div className="w-full h-full flex flex-col">
       <div className="p-4">
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={handleNewChat}
-        >
+        <Button variant="outline" className="w-full justify-start gap-2" onClick={handleNewChat}>
           <Plus className="w-4 h-4" />
           New Chat
         </Button>
@@ -344,9 +366,7 @@ ${
                 <Clock className="w-4 h-4" />
                 <div className="flex-1 truncate">
                   <div className="text-sm">{chat.title}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {chat.date}
-                  </div>
+                  <div className="text-xs text-muted-foreground">{chat.date}</div>
                 </div>
               </Button>
               <div className="flex gap-2">
@@ -359,11 +379,7 @@ ${
                   <DropdownMenuContent>
                     <DropdownMenuItem onClick={() => handlePinChat(chat.id)}>
                       <Pin
-                        className={`w-4 h-4 mr-2 ${
-                          chat.pinned
-                            ? "text-yellow-500"
-                            : "text-muted-foreground"
-                        }`}
+                        className={`w-4 h-4 mr-2 ${chat.pinned ? "text-yellow-500" : "text-muted-foreground"}`}
                       />
                       {chat.pinned ? "Unpin" : "Pin"}
                     </DropdownMenuItem>
@@ -378,68 +394,54 @@ ${
           ))}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t">
-        {!account ? (
-          <ConnectButton />
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent cursor-pointer">
-                <img
-                  src="/sui.svg"
-                  alt="Disconnect"
-                  width="16"
-                  height="16"
-                  className="text-red-500"
-                />
-                <div className="flex-1 truncate">
-                  <div className="text-sm font-medium">
-                    {`${account.address.slice(0, 6)}...${account.address.slice(
-                      -4
-                    )}`}
+      {/* Wallet Connection Area */}
+      <div className="p-4 border-t space-y-4">
+        {/* Sui Wallet Section */}
+        <div>
+          <h3 className="text-sm font-bold mb-1">Sui Wallet</h3>
+          {!account ? (
+            <ConnectButton />
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent cursor-pointer">
+                  <img src="/sui.svg" alt="Sui Wallet" width="16" height="16" />
+                  <div className="flex-1 truncate">
+                    <div className="text-sm font-medium">
+                      {`${account.address.slice(0, 6)}...${account.address.slice(-4)}`}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => disconnect.mutate()}>
-                <div className="flex items-center gap-2">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="text-red-500"
-                  >
-                    <path
-                      d="M8.90002 7.56001C9.21002 3.96001 11.06 2.49001 15.11 2.49001H15.24C19.71 2.49001 21.5 4.28001 21.5 8.75001V15.27C21.5 19.74 19.71 21.53 15.24 21.53H15.11C11.09 21.53 9.24002 20.08 8.91002 16.54"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M15 12H3.62"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M5.85 8.65001L2.5 12L5.85 15.35"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  Disconnect
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => disconnect.mutate()}>
+                  <div className="flex items-center gap-2">
+                    {/* SVG icon omitted for brevity */}
+                    Disconnect
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+        {/* MetaMask Section */}
+        <div>
+          <h3 className="text-sm font-bold mb-1">MetaMask</h3>
+          {!metaConnected ? (
+            <Button onClick={connectMetaMask} className="w-full">
+              Connect MetaMask
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <img
+                src={`/metamask.svg`}
+                alt="MetaMask Avatar"
+                className="w-6 h-6 rounded-full"
+              />
+              <div className="text-sm font-medium">{`${metaAccount.slice(0, 6)}...${metaAccount.slice(-4)}`}</div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -467,11 +469,7 @@ ${
       {/* Mobile Sidebar */}
       <Sheet>
         <SheetTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden absolute left-4 top-4"
-          >
+          <Button variant="ghost" size="icon" className="md:hidden absolute left-4 top-4">
             <Menu className="h-4 w-4" />
           </Button>
         </SheetTrigger>
@@ -491,24 +489,15 @@ ${
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem
-                onClick={() =>
-                  setSelectedModel("deepseek-r1-distill-llama-70b")
-                }
-              >
+              <DropdownMenuItem onClick={() => setSelectedModel("deepseek-r1-distill-llama-70b")}>
                 deepseek-r1-distill-llama-70b
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setSelectedModel("llama-3.3-70b-versatile")}
-              >
+              <DropdownMenuItem onClick={() => setSelectedModel("llama-3.3-70b-versatile")}>
                 llama-3.3-70b-versatile
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setSelectedModel("mixtral-8x7b-32768")}
-              >
+              <DropdownMenuItem onClick={() => setSelectedModel("mixtral-8x7b-32768")}>
                 mixtral-8x7b-32768
               </DropdownMenuItem>
-              {/* Add more models as needed */}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -521,17 +510,13 @@ ${
         )}
         <ScrollArea
           ref={scrollAreaRef}
-          className={`flex-1 px-4 py-4 ${
-            showInitialMessage ? "hidden" : "block"
-          }`}
+          className={`flex-1 px-4 py-4 ${showInitialMessage ? "hidden" : "block"}`}
         >
           <div className="space-y-4 max-w-3xl mx-auto">
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex gap-3 ${
-                  message.role === "assistant" ? "justify-start" : "justify-end"
-                }`}
+                className={`flex gap-3 ${message.role === "assistant" ? "justify-start" : "justify-end"}`}
               >
                 {message.role === "assistant" && (
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-r from-pink-500 to-blue-500">
@@ -539,17 +524,9 @@ ${
                   </div>
                 )}
                 {message.role === "assistant" ? (
-                  <div className="assistant-message-container">
-                    {renderAssistantMessage(message.content)}
-                  </div>
+                  <div className="assistant-message-container">{renderAssistantMessage(message.content)}</div>
                 ) : (
-                  <Card
-                    className={`p-4 max-w-[85%] ${
-                      message.role === "system"
-                        ? "bg-muted text-left"
-                        : "bg-primary text-primary-foreground text-right"
-                    }`}
-                  >
+                  <Card className={`p-4 max-w-[85%] ${message.role === "system" ? "bg-muted text-left" : "bg-primary text-primary-foreground text-right"}`}>
                     {message.content === "..." ? (
                       <div className="flex items-center">
                         <div className="thinking-dots"></div>
@@ -611,14 +588,9 @@ ${
 // Add CSS for the thinking animation and assistant message styling
 const styles = `
 @keyframes thinking {
-  0%, 80%, 100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-5px);
-  }
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-5px); }
 }
-
 .thinking-dots {
   display: inline-block;
   width: 6px;
@@ -628,41 +600,12 @@ const styles = `
   border-radius: 50%;
   animation: thinking 1.4s infinite ease-in-out both;
 }
-
-.thinking-dots:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.thinking-dots:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-.thinking-dots:nth-child(3) {
-  animation-delay: 0s;
-}
-
-.assistant-message-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.assistant-message-paragraph {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-.assistant-message-word {
-  opacity: 0;
-  animation: fadeIn 0.05s forwards;
-}
-
-@keyframes fadeIn {
-  to {
-    opacity: 1;
-  }
-}
+.thinking-dots:nth-child(1) { animation-delay: -0.32s; }
+.thinking-dots:nth-child(2) { animation-delay: -0.16s; }
+.thinking-dots:nth-child(3) { animation-delay: 0s; }
+.assistant-message-container { display: flex; flex-direction: column; gap: 1rem; }
+.assistant-message-paragraph { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.assistant-message-word { opacity: 0; animation: fadeIn 0.05s forwards; }
+@keyframes fadeIn { to { opacity: 1; } }
 `;
-
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);

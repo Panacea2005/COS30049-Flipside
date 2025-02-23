@@ -1,7 +1,7 @@
-import { BarChart2, Share2, History } from 'lucide-react';
+import { BarChart2, Share2, History, TrendingUp } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type TabType = 'overview' | 'visualization' | 'transactions';
+type TabType =  'market' | 'overview' | 'visualization' | 'transactions';
 
 interface StudioTabsProps {
   activeTab: TabType;
@@ -9,6 +9,7 @@ interface StudioTabsProps {
 }
 
 const tabs = [
+  { id: 'market', label: 'Market', icon: TrendingUp },
   { id: 'overview', label: 'Overview', icon: BarChart2 },
   { id: 'visualization', label: 'Visualization', icon: Share2 },
   { id: 'transactions', label: 'Transactions', icon: History }
