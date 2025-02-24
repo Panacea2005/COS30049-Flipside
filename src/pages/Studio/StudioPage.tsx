@@ -11,7 +11,7 @@ type TabType = 'overview' | 'visualization' | 'transactions' | 'market';
 
 export const StudioPage = () => {
   const { isLoggedIn, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('market');
 
   if (loading) {
     return <div>Loading...</div>;
