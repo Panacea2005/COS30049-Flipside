@@ -480,32 +480,38 @@ export const MarketDashboard: React.FC = () => {
               <TrendingUp className="text-green-500" size={18} />
               Top Uptrend
             </h3>
-            <ul className="space-y-2">
-              {topUptrend.map((coin, index) => (
-                <li
-                  key={coin.id}
-                  className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg cursor-pointer transform hover:translate-x-1 transition-all duration-300 animate-fadeIn"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                  onClick={() => setSelectedLeaderboardCoin(coin)}
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={coin.image}
-                      alt={coin.name}
-                      className="w-5 h-5 rounded-full"
-                    />
-                    <span className="font-medium">{coin.name}</span>
-                  </div>
-                  <span className="text-green-600 font-bold bg-green-100 px-2 py-1 rounded-full text-sm">
-                    +
-                    {coin.price_change_percentage_24h != null
-                      ? coin.price_change_percentage_24h.toFixed(2)
-                      : "N/A"}
-                    %
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {topUptrend.length > 0 ? (
+              <ul className="space-y-2">
+                {topUptrend.map((coin, index) => (
+                  <li
+                    key={coin.id}
+                    className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg cursor-pointer transform hover:translate-x-1 transition-all duration-300 animate-fadeIn"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                    onClick={() => setSelectedLeaderboardCoin(coin)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={coin.image}
+                        alt={coin.name}
+                        className="w-5 h-5 rounded-full"
+                      />
+                      <span className="font-medium">{coin.name}</span>
+                    </div>
+                    <span className="text-green-600 font-bold bg-green-100 px-2 py-1 rounded-full text-sm">
+                      +
+                      {coin.price_change_percentage_24h != null
+                        ? coin.price_change_percentage_24h.toFixed(2)
+                        : "N/A"}
+                      %
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="py-6 px-3 bg-gray-50 rounded-lg text-center text-gray-500 animate-fadeIn">
+                <p>No coins with positive trends in the last 24h</p>
+              </div>
+            )}
           </Card>
 
           <Card className="p-4 bg-white bg-opacity-90 backdrop-blur-sm shadow-xl rounded-lg border border-gray-100 hover:shadow-2xl transition-all duration-300">
@@ -513,31 +519,37 @@ export const MarketDashboard: React.FC = () => {
               <TrendingDown className="text-red-500" size={18} />
               Top Downtrend
             </h3>
-            <ul className="space-y-2">
-              {topDowntrend.map((coin, index) => (
-                <li
-                  key={coin.id}
-                  className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-red-50 to-rose-50 rounded-lg cursor-pointer transform hover:translate-x-1 transition-all duration-300 animate-fadeIn"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                  onClick={() => setSelectedLeaderboardCoin(coin)}
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={coin.image}
-                      alt={coin.name}
-                      className="w-5 h-5 rounded-full"
-                    />
-                    <span className="font-medium">{coin.name}</span>
-                  </div>
-                  <span className="text-red-600 font-bold bg-red-100 px-2 py-1 rounded-full text-sm">
-                    {coin.price_change_percentage_24h != null
-                      ? coin.price_change_percentage_24h.toFixed(2)
-                      : "N/A"}
-                    %
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {topDowntrend.length > 0 ? (
+              <ul className="space-y-2">
+                {topDowntrend.map((coin, index) => (
+                  <li
+                    key={coin.id}
+                    className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-red-50 to-rose-50 rounded-lg cursor-pointer transform hover:translate-x-1 transition-all duration-300 animate-fadeIn"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                    onClick={() => setSelectedLeaderboardCoin(coin)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={coin.image}
+                        alt={coin.name}
+                        className="w-5 h-5 rounded-full"
+                      />
+                      <span className="font-medium">{coin.name}</span>
+                    </div>
+                    <span className="text-red-600 font-bold bg-red-100 px-2 py-1 rounded-full text-sm">
+                      {coin.price_change_percentage_24h != null
+                        ? coin.price_change_percentage_24h.toFixed(2)
+                        : "N/A"}
+                      %
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="py-6 px-3 bg-gray-50 rounded-lg text-center text-gray-500 animate-fadeIn">
+                <p>No coins with negative trends in the last 24h</p>
+              </div>
+            )}
           </Card>
 
           <Card className="p-4 bg-white bg-opacity-90 backdrop-blur-sm shadow-xl rounded-lg border border-gray-100 hover:shadow-2xl transition-all duration-300">
@@ -545,28 +557,34 @@ export const MarketDashboard: React.FC = () => {
               <BarChart3 className="text-blue-500" size={18} />
               Top Volume
             </h3>
-            <ul className="space-y-2">
-              {topPopular.map((coin, index) => (
-                <li
-                  key={coin.id}
-                  className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg cursor-pointer transform hover:translate-x-1 transition-all duration-300 animate-fadeIn"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                  onClick={() => setSelectedLeaderboardCoin(coin)}
-                >
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={coin.image}
-                      alt={coin.name}
-                      className="w-5 h-5 rounded-full"
-                    />
-                    <span className="font-medium">{coin.name}</span>
-                  </div>
-                  <span className="text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-full text-sm">
-                    ${((coin.total_volume || 0) / 1000000).toFixed(1)}M
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {topPopular.length > 0 ? (
+              <ul className="space-y-2">
+                {topPopular.map((coin, index) => (
+                  <li
+                    key={coin.id}
+                    className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg cursor-pointer transform hover:translate-x-1 transition-all duration-300 animate-fadeIn"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                    onClick={() => setSelectedLeaderboardCoin(coin)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={coin.image}
+                        alt={coin.name}
+                        className="w-5 h-5 rounded-full"
+                      />
+                      <span className="font-medium">{coin.name}</span>
+                    </div>
+                    <span className="text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-full text-sm">
+                      ${((coin.total_volume || 0) / 1000000).toFixed(1)}M
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="py-6 px-3 bg-gray-50 rounded-lg text-center text-gray-500 animate-fadeIn">
+                <p>No volume data available</p>
+              </div>
+            )}
           </Card>
         </div>
       </div>

@@ -17,6 +17,14 @@ import {
   Pin,
   MoreVertical,
   File,
+  CreditCard,
+  Network,
+  Coins,
+  Image,
+  History,
+  Globe,
+  Beaker,
+  X,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { chatService, Message } from "./components/chatService";
@@ -38,6 +46,7 @@ import {
 export const FlidePage = () => {
   // Chat & file upload state
   const [messages, setMessages] = useState<Message[]>([]);
+  const [currentNetwork, setCurrentNetwork] = useState<string>("mainnet");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<number | null>(null);
@@ -49,7 +58,7 @@ export const FlidePage = () => {
     null
   );
   const [selectedModel, setSelectedModel] = useState(
-    "deepseek-r1-distill-llama-70b"
+    "qwen-2.5-coder-32b"
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -144,6 +153,242 @@ export const FlidePage = () => {
     }
   };
 
+  const handleGetNFTs = async () => {
+    if (!metaConnected) {
+      toast({
+        title: "MetaMask Not Connected",
+        description: "Please connect MetaMask first.",
+      });
+      return;
+    }
+
+    try {
+      // Use Alchemy API, Moralis, or OpenSea API to fetch NFTs
+      // For example with Alchemy (you'd need to replace with your API key)
+      const alchemyApiKey = "YOUR_ALCHEMY_API_KEY";
+      const baseURL = `https://eth-mainnet.g.alchemy.com/v2/${alchemyApiKey}`;
+      const url = `${baseURL}/getNFTs/?owner=${metaAccount}`;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Fetching your NFTs... This may take a moment.",
+        },
+      ]);
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.ownedNfts && data.ownedNfts.length > 0) {
+        const nftCount = data.ownedNfts.length;
+        const responseMessage = `You own ${nftCount} NFTs. Here are some of your collections:\n${data.ownedNfts
+          .slice(0, 5)
+          .map(
+            (nft: any) =>
+              `- ${nft.title || "Unnamed NFT"} (${
+                nft.contract.name || nft.contract.address.substring(0, 6)
+              }...)`
+          )
+          .join("\n")}`;
+
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: "assistant", content: responseMessage },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: "assistant", content: "No NFTs found in this wallet." },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error fetching NFTs:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to fetch NFTs",
+        variant: "destructive",
+      });
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        {
+          role: "assistant",
+          content:
+            "Sorry, I couldn't fetch your NFTs. There was an error with the API.",
+        },
+      ]);
+    }
+  };
+
+  // New function to fetch recent transactions
+  const handleGetTransactions = async () => {
+    if (!metaConnected) {
+      toast({
+        title: "MetaMask Not Connected",
+        description: "Please connect MetaMask first.",
+      });
+      return;
+    }
+
+    try {
+      // Use Etherscan API to fetch transactions
+      const etherscanApiKey = "YOUR_ETHERSCAN_API_KEY";
+      const network = currentNetwork === "sepolia" ? "api-sepolia" : "api";
+      const url = `https://${network}.etherscan.io/api?module=account&action=txlist&address=${metaAccount}&startblock=0&endblock=99999999&page=1&offset=5&sort=desc&apikey=${etherscanApiKey}`;
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Fetching your recent transactions..." },
+      ]);
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.result && data.result.length > 0) {
+        const txList = data.result
+          .map((tx: any) => {
+            const value = ethers.formatEther(tx.value);
+            const date = new Date(
+              parseInt(tx.timeStamp) * 1000
+            ).toLocaleDateString();
+            return `- ${date}: ${
+              tx.from === metaAccount.toLowerCase() ? "Sent" : "Received"
+            } ${value} ETH ${
+              tx.from === metaAccount.toLowerCase() ? "to" : "from"
+            } ${
+              tx.from === metaAccount.toLowerCase()
+                ? tx.to.substring(0, 6)
+                : tx.from.substring(0, 6)
+            }...`;
+          })
+          .join("\n");
+
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: "assistant", content: `Recent Transactions:\n${txList}` },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: "assistant", content: "No recent transactions found." },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch transactions",
+        variant: "destructive",
+      });
+      setMessages((prev) => [
+        ...prev.slice(0, -1),
+        {
+          role: "assistant",
+          content:
+            "Sorry, I couldn't fetch your transactions. There was an error with the API.",
+        },
+      ]);
+    }
+  };
+
+  // Improved handleSwitchNetwork function
+  const handleSwitchNetwork = async (
+    network: "mainnet" | "sepolia" | "polygon"
+  ) => {
+    if (!metaConnected) {
+      toast({
+        title: "MetaMask Not Connected",
+        description: "Please connect MetaMask first.",
+      });
+      return;
+    }
+
+    const networkParams: Record<
+      string,
+      {
+        chainId: string;
+        chainName: string;
+        nativeCurrency: any;
+        rpcUrls: string[];
+        blockExplorerUrls: string[];
+      }
+    > = {
+      mainnet: {
+        chainId: "0x1",
+        chainName: "Ethereum Mainnet",
+        nativeCurrency: {
+          name: "Ether",
+          symbol: "ETH",
+          decimals: 18,
+        },
+        rpcUrls: ["https://mainnet.infura.io/v3/YOUR_INFURA_KEY"],
+        blockExplorerUrls: ["https://etherscan.io"],
+      },
+      sepolia: {
+        chainId: "0xaa36a7",
+        chainName: "Sepolia Testnet",
+        nativeCurrency: {
+          name: "Sepolia Ether",
+          symbol: "ETH",
+          decimals: 18,
+        },
+        rpcUrls: ["https://sepolia.infura.io/v3/YOUR_INFURA_KEY"],
+        blockExplorerUrls: ["https://sepolia.etherscan.io"],
+      },
+    };
+
+    try {
+      // First try switching to the network
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: networkParams[network].chainId }],
+      });
+      setCurrentNetwork(network);
+
+      const responseMessage = `Switched network to ${networkParams[network].chainName}.`;
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: responseMessage },
+      ]);
+    } catch (error: any) {
+      // If the network does not exist in MetaMask, add it
+      if (error.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [networkParams[network]],
+          });
+          setCurrentNetwork(network);
+
+          const responseMessage = `Added and switched to ${networkParams[network].chainName}.`;
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: responseMessage },
+          ]);
+        } catch (addError) {
+          console.error("Error adding network:", addError);
+          toast({
+            title: "Error",
+            description: (addError as Error).message,
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("Error switching network:", error);
+        toast({
+          title: "Error",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Improved token fetching function
   const handleGetTokens = async () => {
     if (!metaConnected) {
       toast({
@@ -152,83 +397,98 @@ export const FlidePage = () => {
       });
       return;
     }
-    // Use Covalent API to fetch token balances.
-    // For mainnet, chainId is "1". (For Sepolia, you'll need to adjust if supported.)
-    const chainId = "1";
-    const apiKey = "YOUR_COVALENT_API_KEY"; // <-- Replace with your actual Covalent API key
+
+    // Show loading message
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: "Fetching your tokens... This may take a moment.",
+      },
+    ]);
+
+    // Determine chain ID based on current network
+    let chainId = "1"; // Default to Ethereum mainnet
+    if (currentNetwork === "sepolia") chainId = "11155111";
+    else if (currentNetwork === "polygon") chainId = "137";
+
+    const apiKey = "YOUR_COVALENT_API_KEY"; // Replace with your actual Covalent API key
     const url = `https://api.covalenthq.com/v1/${chainId}/address/${metaAccount}/balances_v2/?key=${apiKey}`;
-  
+
     try {
       const res = await fetch(url);
       const data = await res.json();
-  
+
       if (data.error) {
         toast({
           title: "Error fetching tokens",
           description: data.error_message || "Unknown error",
           variant: "destructive",
         });
+
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          {
+            role: "assistant",
+            content:
+              "Sorry, I couldn't fetch your tokens. There was an error with the API.",
+          },
+        ]);
         return;
       }
-  
+
       const tokens = data.data.items;
       if (!tokens || tokens.length === 0) {
         setMessages((prev) => [
-          ...prev,
+          ...prev.slice(0, -1),
           { role: "assistant", content: "No tokens found in your wallet." },
         ]);
         return;
       }
-  
+
       // Filter tokens with a non-zero balance and format them
-      let tokensList = tokens
+      const tokensList = tokens
         .filter((token: any) => Number(token.balance) > 0)
         .map((token: any) => {
           const decimals = token.contract_decimals;
           const balance = ethers.formatUnits(token.balance, decimals);
-          return `${token.contract_ticker_symbol}: ${balance}`;
+          const usdValue =
+            token.quote > 0 ? ` ($${token.quote.toFixed(2)})` : "";
+          return `- ${token.contract_ticker_symbol}: ${parseFloat(
+            balance
+          ).toFixed(4)}${usdValue}`;
         })
         .join("\n");
-  
-      if (!tokensList) tokensList = "No tokens found.";
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: `Token Balances:\n${tokensList}` },
-      ]);
+
+      if (!tokensList || tokensList.length === 0) {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          {
+            role: "assistant",
+            content: "No tokens with non-zero balance found.",
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: "assistant", content: `Token Balances:\n${tokensList}` },
+        ]);
+      }
     } catch (error) {
       toast({
         title: "Error fetching tokens",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
-    }
-  };  
 
-  const handleSwitchNetwork = async (network: "mainnet" | "sepolia") => {
-    if (!metaConnected) {
-      toast({
-        title: "MetaMask Not Connected",
-        description: "Please connect MetaMask first.",
-      });
-      return;
-    }
-    try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: network === "sepolia" ? "0xaa36a7" : "0x1" }],
-      });
-      const responseMessage = `Switched network to ${network}.`;
       setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: responseMessage },
+        ...prev.slice(0, -1),
+        {
+          role: "assistant",
+          content:
+            "Sorry, I couldn't fetch your tokens. There was an error with the API.",
+        },
       ]);
-    } catch (error) {
-      console.error("Error switching network:", error);
-      toast({
-        title: "Error",
-        description: (error as Error).message,
-        variant: "destructive",
-      });
     }
   };
 
@@ -613,7 +873,7 @@ ${
                   setSelectedModel("deepseek-r1-distill-llama-70b")
                 }
               >
-                deepseek-r1-distill-llama-70b
+                qwen-2.5-coder-32b
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setSelectedModel("llama-3.3-70b-versatile")}
@@ -688,24 +948,109 @@ ${
         </ScrollArea>
 
         {/* Wallet Action Buttons */}
-        <div className="p-4 bg-background flex flex-col gap-2">
-          <div className="flex gap-2 mb-2">
-            <Button onClick={handleGetBalance}>Get Balance</Button>
-            <Button onClick={handleGetNetwork}>Network Info</Button>
-            <Button onClick={handleGetTokens}>Get Tokens</Button>
-            <Button onClick={() => handleSwitchNetwork("mainnet")}>
-              Switch to Mainnet
-            </Button>
-            <Button onClick={() => handleSwitchNetwork("sepolia")}>
-              Switch to Sepolia
-            </Button>
+        <div className="p-4 bg-muted/30 rounded-t-lg border-t">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold mb-2">Wallet Actions</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetBalance}
+                className="flex items-center gap-1"
+                disabled={!metaConnected}
+              >
+                <CreditCard className="w-3 h-3" />
+                Balance
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetNetwork}
+                className="flex items-center gap-1"
+                disabled={!metaConnected}
+              >
+                <Network className="w-3 h-3" />
+                Network
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetTokens}
+                className="flex items-center gap-1"
+                disabled={!metaConnected}
+              >
+                <Coins className="w-3 h-3" />
+                Tokens
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetNFTs}
+                className="flex items-center gap-1"
+                disabled={!metaConnected}
+              >
+                <Image className="w-3 h-3" />
+                NFTs
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetTransactions}
+                className="flex items-center gap-1"
+                disabled={!metaConnected}
+              >
+                <History className="w-3 h-3" />
+                Txns
+              </Button>
+            </div>
           </div>
+
+          {metaConnected && (
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold mb-2">Network</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={currentNetwork === "mainnet" ? "default" : "outline"}
+                  onClick={() => handleSwitchNetwork("mainnet")}
+                  className="flex items-center gap-1"
+                >
+                  <Globe className="w-3 h-3" />
+                  Mainnet
+                </Button>
+                <Button
+                  size="sm"
+                  variant={currentNetwork === "sepolia" ? "default" : "outline"}
+                  onClick={() => handleSwitchNetwork("sepolia")}
+                  className="flex items-center gap-1"
+                >
+                  <Beaker className="w-3 h-3" />
+                  Sepolia
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* File upload and input area below */}
           {uploadedFile && (
-            <Card className="p-4 flex items-center gap-2">
-              <File className="w-5 h-5" />
-              <span>{uploadedFile.name}</span>
+            <Card className="p-2 flex items-center gap-2 mb-2">
+              <File className="w-4 h-4" />
+              <span className="text-sm truncate">{uploadedFile.name}</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 ml-auto"
+                onClick={() => setUploadedFile(null)}
+              >
+                <X className="w-3 h-3" />
+              </Button>
             </Card>
           )}
+
           <div className="flex gap-2">
             <Input
               value={input}
@@ -715,13 +1060,17 @@ ${
               className="flex-1"
             />
             <label className="flex items-center">
-              <Button size="icon" onClick={() => fileInputRef.current?.click()}>
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Paperclip className="w-4 h-4" />
               </Button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".move"
+                accept=".move,.sol"
                 className="hidden"
                 onChange={handleFileUpload}
               />

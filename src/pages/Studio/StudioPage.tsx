@@ -6,12 +6,13 @@ import { OverviewPage } from './components/Overview/OverviewPage';
 import { VisualizationPage } from './components/Visualization/VisualizationPage';
 import { TransactionHistory } from './components/TransactionHistory/TransactionHistory';
 import { MarketDashboard } from './components/Market/MarketDashboard';
+import TradePage from './components/Trade/TradePage';
 
-type TabType = 'overview' | 'visualization' | 'transactions' | 'market';
+type TabType = 'trade' | 'overview' | 'visualization' | 'transactions' | 'market';
 
 export const StudioPage = () => {
   const { isLoggedIn, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('market');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   if (loading) {
     return <div>Loading...</div>;
@@ -31,6 +32,8 @@ export const StudioPage = () => {
         return <TransactionHistory />;
       case 'market':
         return <MarketDashboard />;
+      case 'trade':
+        return <TradePage />;
       default:
         return <OverviewPage />;
     }
