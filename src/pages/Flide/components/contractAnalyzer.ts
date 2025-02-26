@@ -7,6 +7,7 @@ interface SecurityIssue {
   impact: string;
   recommendation: string;
   codeExample?: string;
+  language?: "move" | "sol";
 }
 
 interface Optimization {
@@ -15,6 +16,7 @@ interface Optimization {
   suggestion: string;
   impact: string;
   codeExample?: string;
+  language?: "move" | "sol";
 }
 
 export interface ContractAnalysis {
@@ -31,6 +33,7 @@ export interface ContractAnalysis {
   modificationSuggestions?: string;
   summary?: string;
   rawAnalysis?: string; // Complete analysis including the thinking process
+  language?: "move" | "sol";
 }
 
 export class ContractAnalyzer {
@@ -44,15 +47,15 @@ export class ContractAnalyzer {
     });
   }
 
-  async analyzeContract(code: string, model: string): Promise<ContractAnalysis> {
+  async analyzeContract(code: string, model: string, language: "move" | "sol" = "move"): Promise<ContractAnalysis> {
     const startTime = Date.now();
     try {
       console.log("Starting enhanced contract analysis...");
-      // Enhanced system prompt for a more detailed and actionable audit
+      // Adjust the system prompt based on the contract language.
       const systemMessage = {
         role: "system" as const,
-        content: `You are an expert Move smart contract security auditor with extensive knowledge of vulnerabilities, best practices, and optimization techniques. 
-Analyze the provided Move smart contract thoroughly and step-by-step. 
+        content: `You are an expert ${language === "sol" ? "Solidity" : "Move"} smart contract security auditor with extensive knowledge of vulnerabilities, best practices, and optimization techniques. 
+Analyze the provided ${language === "sol" ? "Solidity" : "Move"} smart contract thoroughly and step-by-step. 
 Your response should begin with a detailed reasoning of your analysis process, then provide a comprehensive security audit.
 Include:
 1. Specific security vulnerabilities with precise code locations.
@@ -77,7 +80,7 @@ Ensure that your analysis is precise, detailed, and actionable.`
 
       const userMessage = {
         role: "user" as const,
-        content: `Analyze this Move smart contract for security issues, best practices, and optimizations:\n\n${code}`
+        content: `Analyze this ${language === "sol" ? "Solidity" : "Move"} smart contract for security issues, best practices, and optimizations:\n\n${code}`
       };
 
       const completion = await this.groq.chat.completions.create({
@@ -105,13 +108,14 @@ Ensure that your analysis is precise, detailed, and actionable.`
         linesOfCode,
         issuesCount: 0,
         summary: analysisResult.summary || "Analysis completed",
-        critical: this.validateIssues(analysisResult.critical || []),
-        high: this.validateIssues(analysisResult.high || []),
-        medium: this.validateIssues(analysisResult.medium || []),
-        low: this.validateIssues(analysisResult.low || []),
-        informational: this.validateIssues(analysisResult.informational || []),
-        optimizations: this.validateOptimizations(analysisResult.optimizations || []),
-        rawAnalysis: this.formatAnalysisResponse(rawAnalysis, analysisResult)
+        critical: this.validateIssues(analysisResult.critical || [], language),
+        high: this.validateIssues(analysisResult.high || [], language),
+        medium: this.validateIssues(analysisResult.medium || [], language),
+        low: this.validateIssues(analysisResult.low || [], language),
+        informational: this.validateIssues(analysisResult.informational || [], language),
+        optimizations: this.validateOptimizations(analysisResult.optimizations || [], language),
+        rawAnalysis: this.formatAnalysisResponse(rawAnalysis, analysisResult),
+        language
       };
 
       analysis.issuesCount =
@@ -125,7 +129,7 @@ Ensure that your analysis is precise, detailed, and actionable.`
 
       // If issues were found, request modification suggestions with improved detail.
       if (analysis.issuesCount > 0) {
-        analysis.modificationSuggestions = await this.suggestContractModifications(code, analysis, model);
+        analysis.modificationSuggestions = await this.suggestContractModifications(code, analysis, model, language);
       }
 
       this.lastAnalysis = analysis;
@@ -176,19 +180,15 @@ Ensure that your analysis is precise, detailed, and actionable.`
         formattedResponse += `  - Impact: ${issue.impact}\n`;
         formattedResponse += `  - Recommendation: ${issue.recommendation}\n`;
         if (issue.codeExample) {
-          formattedResponse += `  - Example Fix:\n\`\`\`move\n${issue.codeExample}\n\`\`\`\n`;
+          formattedResponse += `  - Example Fix:\n\`\`\`${issue.language === "sol" ? "sol" : "move"}\n${issue.codeExample}\n\`\`\`\n`;
         }
       });
     }
-
-    // Optionally add sections for high, medium, low, and informational issues similarly
-    // (You may repeat similar formatting if needed)
 
     return formattedResponse;
   }
 
   private extractAnalysisFromText(text: string): any {
-    // Fallback extraction if JSON parsing fails – this is basic and can be expanded as needed
     const result = {
       securityScore: 100,
       summary: "",
@@ -200,7 +200,6 @@ Ensure that your analysis is precise, detailed, and actionable.`
       optimizations: []
     };
 
-    // Use keyword matching to estimate the security score
     if (text.toLowerCase().includes("critical") || text.toLowerCase().includes("severe")) {
       result.securityScore = 0;
     } else if (text.toLowerCase().includes("high")) {
@@ -211,7 +210,6 @@ Ensure that your analysis is precise, detailed, and actionable.`
       result.securityScore = 75;
     }
 
-    // Attempt to extract a summary line
     const summaryMatch = text.match(/summary:?\s*([^\n]+)/i);
     if (summaryMatch) {
       result.summary = summaryMatch[1];
@@ -220,33 +218,35 @@ Ensure that your analysis is precise, detailed, and actionable.`
     return result;
   }
 
-  private validateIssues(issues: any[]): SecurityIssue[] {
+  private validateIssues(issues: any[], language: "move" | "sol"): SecurityIssue[] {
     return issues.map(issue => ({
       type: issue.type || 'Unknown Issue',
       description: issue.description || 'No description provided',
       location: issue.location || 'Not specified',
       impact: issue.impact || 'Not specified',
       recommendation: issue.recommendation || 'No recommendation provided',
-      codeExample: issue.codeExample || null
+      codeExample: issue.codeExample || null,
+      language
     }));
   }
 
-  private validateOptimizations(optimizations: any[]): Optimization[] {
+  private validateOptimizations(optimizations: any[], language: "move" | "sol"): Optimization[] {
     return optimizations.map(opt => ({
       type: opt.type || 'Unknown Optimization',
       description: opt.description || 'No description provided',
       suggestion: opt.suggestion || 'No suggestion provided',
       impact: opt.impact || 'Not specified',
-      codeExample: opt.codeExample || null
+      codeExample: opt.codeExample || null,
+      language
     }));
   }
 
-  private async suggestContractModifications(code: string, analysis: ContractAnalysis, model: string): Promise<string> {
+  private async suggestContractModifications(code: string, analysis: ContractAnalysis, model: string, language: "move" | "sol"): Promise<string> {
     try {
       console.log("Requesting enhanced modification suggestions based on analysis...");
       const systemMessage = {
         role: "system" as const,
-        content: `You are an expert Move smart contract developer. Based on the following analysis, provide a modified version of the contract with inline comments that explain each change. Your modifications should address every identified issue and incorporate best practices.`
+        content: `You are an expert ${language === "sol" ? "Solidity" : "Move"} smart contract developer. Based on the following analysis, provide a modified version of the contract with inline comments that explain each change. Your modifications should address every identified issue and incorporate best practices.`
       };
 
       const userMessage = {
@@ -262,7 +262,9 @@ Low Issues: ${analysis.low.map(i => i.type).join(", ")}
 
 Original contract code:
 
+\`\`\`${language === "sol" ? "sol" : "move"}
 ${code}
+\`\`\`
 
 Return the modified contract code with inline comments for each change.`
       };

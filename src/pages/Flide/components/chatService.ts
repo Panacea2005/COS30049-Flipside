@@ -1,7 +1,7 @@
 import Groq from "groq-sdk";
 import { contractAnalyzer } from "./contractAnalyzer";
 
-const groq = new Groq({ 
+const groq = new Groq({
   apiKey: import.meta.env.VITE_GROQ_API_KEY,
   dangerouslyAllowBrowser: true
 });
@@ -25,14 +25,11 @@ export const chatService = {
 
       console.log('Sending message to Groq:', userMessage.content);
 
-      // Check if the message contains Move code
-      const isContractCode = this.detectMoveCode(userMessage.content);
-      
-      if (isContractCode) {
-        // If it's contract code, let's analyze it using the contractAnalyzer
-        const analysis = await contractAnalyzer.analyzeContract(userMessage.content, model);
-        
-        // Return the complete analysis including thinking process
+      // Check if the message contains contract code (either Move or Solidity)
+      const contractLang = this.detectContractLanguage(userMessage.content);
+      if (contractLang) {
+        const analysis = await contractAnalyzer.analyzeContract(userMessage.content, model, contractLang);
+        // For contract analysis we return a formatted string if needed.
         return analysis.rawAnalysis || this.formatDefaultAnalysis(analysis);
       }
 
@@ -82,17 +79,17 @@ ${analysis.low.length > 0 ? `## Low Severity Issues\n${this.formatIssues(analysi
 ${analysis.informational.length > 0 ? `## Informational Issues\n${this.formatIssues(analysis.informational)}\n\n` : ''}
 ${analysis.optimizations.length > 0 ? `## Optimization Suggestions\n${this.formatOptimizations(analysis.optimizations)}\n\n` : ''}
 
-${analysis.modificationSuggestions ? `## Recommended Modifications\n\`\`\`move\n${analysis.modificationSuggestions}\n\`\`\`\n` : ''}`;
+${analysis.modificationSuggestions ? `## Recommended Modifications\n\`\`\`${analysis.language === "sol" ? "sol" : "move"}\n${analysis.modificationSuggestions}\n\`\`\`\n` : ''}`;
   },
 
   formatIssues(issues: any[]): string {
-    return issues.map(issue => 
+    return issues.map(issue =>
       `### ${issue.type}\n` +
       `- **Location**: ${issue.location}\n` +
       `- **Description**: ${issue.description}\n` +
       `- **Impact**: ${issue.impact}\n` +
       `- **Recommendation**: ${issue.recommendation}\n` +
-      (issue.codeExample ? `- **Example Fix**:\n\`\`\`move\n${issue.codeExample}\n\`\`\`\n` : '')
+      (issue.codeExample ? `- **Example Fix**:\n\`\`\`${issue.language === "sol" ? "sol" : "move"}\n${issue.codeExample}\n\`\`\`\n` : '')
     ).join('\n');
   },
 
@@ -102,11 +99,17 @@ ${analysis.modificationSuggestions ? `## Recommended Modifications\n\`\`\`move\n
       `- **Description**: ${opt.description}\n` +
       `- **Suggestion**: ${opt.suggestion}\n` +
       `- **Impact**: ${opt.impact}\n` +
-      (opt.codeExample ? `- **Example**:\n\`\`\`move\n${opt.codeExample}\n\`\`\`\n` : '')
+      (opt.codeExample ? `- **Example**:\n\`\`\`${opt.language === "sol" ? "sol" : "move"}\n${opt.codeExample}\n\`\`\`\n` : '')
     ).join('\n');
   },
 
-  detectMoveCode(content: string): boolean {
+  // New function to detect the contract language.
+  detectContractLanguage(content: string): "move" | "sol" | null {
+    // Check for Solidity-specific keywords
+    if (content.toLowerCase().includes("pragma solidity") || content.toLowerCase().includes("contract ")) {
+      return "sol";
+    }
+    // Check for Move-specific keywords
     const moveKeywords = [
       'module',
       'script',
@@ -118,11 +121,14 @@ ${analysis.modificationSuggestions ? `## Recommended Modifications\n\`\`\`move\n
       'entry fun',
       '#[allow(unused_variable)]'
     ];
-    const codeIndicators = [
-      content.includes('{') && content.includes('}'),
-      content.split('\n').length > 3,
-      moveKeywords.some(keyword => content.toLowerCase().includes(keyword))
-    ];
-    return codeIndicators.filter(Boolean).length >= 2;
+    if (moveKeywords.some(keyword => content.toLowerCase().includes(keyword))) {
+      return "move";
+    }
+    return null;
+  },
+
+  // Keep this helper for backward compatibility
+  detectMoveCode(content: string): boolean {
+    return !!this.detectContractLanguage(content);
   }
 };

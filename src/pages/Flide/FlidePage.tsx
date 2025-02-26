@@ -25,6 +25,7 @@ import {
   Globe,
   Beaker,
   X,
+  Copy
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { chatService, Message } from "./components/chatService";
@@ -54,12 +55,8 @@ export const FlidePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showInitialMessage, setShowInitialMessage] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(
-    null
-  );
-  const [selectedModel, setSelectedModel] = useState(
-    "qwen-2.5-coder-32b"
-  );
+  const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("qwen-2.5-coder-32b");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -70,8 +67,7 @@ export const FlidePage = () => {
   // MetaMask wallet state
   const [metaAccount, setMetaAccount] = useState<string>("");
   const [metaConnected, setMetaConnected] = useState<boolean>(false);
-  const [metaProvider, setMetaProvider] =
-    useState<ethers.BrowserProvider | null>(null);
+  const [metaProvider, setMetaProvider] = useState<ethers.BrowserProvider | null>(null);
 
   const connectMetaMask = async () => {
     if (window.ethereum) {
@@ -508,6 +504,53 @@ export const FlidePage = () => {
     }
   }, [messages]);
 
+  // New function to copy text to clipboard
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: "Copied!",
+        description: "The modified code has been copied to your clipboard.",
+      });
+    });
+  };
+
+  const renderAnalysisResult = (analysis: any) => {
+    return (
+      <>
+        <Card className="p-4 mb-2">
+          <h3 className="text-lg font-bold mb-2">Contract Analysis Statistics</h3>
+          <p><strong>Security Score:</strong> {analysis.securityScore}/100</p>
+          <p><strong>Scan Duration:</strong> {analysis.scanDuration}</p>
+          <p><strong>Lines of Code:</strong> {analysis.linesOfCode}</p>
+          <p><strong>Total Issues:</strong> {analysis.issuesCount}</p>
+        </Card>
+        {analysis.modificationSuggestions && (
+          <Card className="p-4 mb-2 bg-black text-white font-mono relative">
+            <div className="absolute top-2 right-2">
+              <Button size="icon" variant="ghost" onClick={() => handleCopyText(analysis.modificationSuggestions)}>
+                <Copy className="w-4 h-4" />
+              </Button>
+            </div>
+            <pre>{analysis.modificationSuggestions}</pre>
+          </Card>
+        )}
+      </>
+    );
+  };
+
+  const renderAssistantMessage = (content: string) => {
+    const paragraphs = content.split("\n\n");
+    return paragraphs.map((paragraph, index) => (
+      <p key={index} className="assistant-message-paragraph">
+        {paragraph.split(" ").map((word, wordIndex) => (
+          <span key={wordIndex} className="assistant-message-word">
+            {word}{" "}
+          </span>
+        ))}
+      </p>
+    ));
+  };
+
   const handleSend = async () => {
     if ((!input.trim() && !uploadedFile) || isLoading) return;
 
@@ -527,114 +570,36 @@ export const FlidePage = () => {
       // Immediately add placeholder for bot response
       setMessages((prev) => [...prev, { role: "assistant", content: "..." }]);
 
-      let response = "";
-      const lowerInput = input.toLowerCase();
-
-      // --- Wallet Query Detection ---
-      if (
-        (metaConnected || account) &&
-        (lowerInput.includes("balance") ||
-          lowerInput.includes("tokens") ||
-          lowerInput.includes("nft"))
-      ) {
-        if (lowerInput.includes("metamask") && metaConnected) {
-          const network = lowerInput.includes("sepolia")
-            ? "sepolia"
-            : "mainnet";
-          let provider = metaProvider;
-          if (network === "sepolia") {
-            provider = new ethers.BrowserProvider(window.ethereum, {
-              chainId: 11155111,
-            });
-          }
-          if (!provider) {
-            response = "Failed to connect to MetaMask provider.";
-          } else {
-            const balanceBigInt = await provider.getBalance(metaAccount);
-            const balance = ethers.formatEther(balanceBigInt);
-            response = `Your MetaMask wallet balance on ${network} is ${balance} ETH.`;
-          }
-        } else if (lowerInput.includes("sui") && account) {
-          response = "Sui wallet balance feature is not implemented yet.";
-        } else if (metaConnected) {
-          const network = lowerInput.includes("sepolia")
-            ? "sepolia"
-            : "mainnet";
-          let provider = metaProvider;
-          if (network === "sepolia") {
-            provider = new ethers.BrowserProvider(window.ethereum, {
-              chainId: 11155111,
-            });
-          }
-          if (!provider) {
-            response = "Failed to connect to MetaMask provider.";
-          } else {
-            const balanceBigInt = await provider.getBalance(metaAccount);
-            const balance = ethers.formatEther(balanceBigInt);
-            response = `Your MetaMask wallet balance on ${network} is ${balance} ETH.`;
-          }
-        } else if (account) {
-          response = "Sui wallet balance feature is not implemented yet.";
-        }
-      } else if (chatService.detectMoveCode(input) || uploadedFileContent) {
-        const codeContent = uploadedFileContent || input;
-        const analysis = await contractAnalyzer.analyzeContract(
-          codeContent,
-          selectedModel
-        );
-        response = `CONTRACT SECURITY ANALYSIS
-
-OVERVIEW
-1. Security Score: ${analysis.securityScore}/100
-2. Scan Duration: ${analysis.scanDuration}
-3. Lines of Code: ${analysis.linesOfCode}
-4. Total Issues: ${analysis.issuesCount}
-
-CRITICAL ISSUES ${analysis.critical.length > 0 ? "" : "None"}
-${
-  analysis.critical.length === 0
-    ? ""
-    : analysis.critical
-        .map(
-          (issue) => `
-- ${issue.type}
-  - Description: ${issue.description}
-  - Impact: ${issue.impact}
-  - Location: ${issue.location || "N/A"}
-  - Recommendation: ${issue.recommendation}
-`
-        )
-        .join("\n")
-}
-
-// (Additional analysis sections omitted for brevity)
-`;
+      let codeContent = uploadedFileContent || input;
+      // Check if the message contains contract code (Move or Solidity)
+      const contractLang = chatService.detectContractLanguage(codeContent);
+      if (contractLang) {
+        // Perform contract analysis without the word-by-word animation.
+        const analysis = await contractAnalyzer.analyzeContract(codeContent, selectedModel, contractLang);
+        // Replace the placeholder message with the analysis result.
+        setMessages((prev) => [...prev.slice(0, -1), { role: "assistant", content: "", analysisResult: analysis }]);
         setUploadedFileContent(null);
       } else {
-        response = await chatService.sendMessage([userMessage], selectedModel);
-      }
-
-      // Gradually display the bot's response
-      let displayedResponse = "";
-      const words = response.split(" ");
-      for (let i = 0; i < words.length; i++) {
-        displayedResponse += words[i] + " ";
-        setMessages((prev) =>
-          prev
-            .slice(0, -1)
-            .concat({ role: "assistant", content: displayedResponse })
-        );
-        if (scrollAreaRef.current) {
-          scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+        const response = await chatService.sendMessage([userMessage], selectedModel);
+        // Gradually display the bot's response
+        let displayedResponse = "";
+        const words = response.split(" ");
+        for (let i = 0; i < words.length; i++) {
+          displayedResponse += words[i] + " ";
+          setMessages((prev) =>
+            prev.slice(0, -1).concat({ role: "assistant", content: displayedResponse })
+          );
+          if (scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
         }
-        await new Promise((resolve) => setTimeout(resolve, 50));
       }
     } catch (error) {
       console.error("Error in handleSend:", error);
       toast({
         title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to send message.",
+        description: error instanceof Error ? error.message : "Failed to send message.",
         variant: "destructive",
       });
     } finally {
@@ -649,9 +614,7 @@ ${
     }
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
@@ -821,19 +784,6 @@ ${
     </div>
   );
 
-  const renderAssistantMessage = (content: string) => {
-    const paragraphs = content.split("\n\n");
-    return paragraphs.map((paragraph, index) => (
-      <p key={index} className="assistant-message-paragraph">
-        {paragraph.split(" ").map((word, wordIndex) => (
-          <span key={wordIndex} className="assistant-message-word">
-            {word}{" "}
-          </span>
-        ))}
-      </p>
-    ));
-  };
-
   return (
     <div className="flex h-[calc(100vh)] pt-16">
       {/* Desktop Sidebar */}
@@ -868,21 +818,13 @@ ${
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem
-                onClick={() =>
-                  setSelectedModel("deepseek-r1-distill-llama-70b")
-                }
-              >
+              <DropdownMenuItem onClick={() => setSelectedModel("qwen-2.5-coder-32b")}>
                 qwen-2.5-coder-32b
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setSelectedModel("llama-3.3-70b-versatile")}
-              >
+              <DropdownMenuItem onClick={() => setSelectedModel("llama-3.3-70b-versatile")}>
                 llama-3.3-70b-versatile
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setSelectedModel("mixtral-8x7b-32768")}
-              >
+              <DropdownMenuItem onClick={() => setSelectedModel("mixtral-8x7b-32768")}>
                 mixtral-8x7b-32768
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -895,37 +837,25 @@ ${
             </h1>
           </div>
         )}
-        <ScrollArea
-          ref={scrollAreaRef}
-          className={`flex-1 px-4 py-4 ${
-            showInitialMessage ? "hidden" : "block"
-          }`}
-        >
+        <ScrollArea ref={scrollAreaRef} className={`flex-1 px-4 py-4 ${showInitialMessage ? "hidden" : "block"}`}>
           <div className="space-y-4 max-w-3xl mx-auto">
             {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex gap-3 ${
-                  message.role === "assistant" ? "justify-start" : "justify-end"
-                }`}
-              >
+              <div key={index} className={`flex gap-3 ${message.role === "assistant" ? "justify-start" : "justify-end"}`}>
                 {message.role === "assistant" && (
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-r from-pink-500 to-blue-500">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
                 {message.role === "assistant" ? (
-                  <div className="assistant-message-container">
-                    {renderAssistantMessage(message.content)}
-                  </div>
+                  message.analysisResult ? (
+                    renderAnalysisResult(message.analysisResult)
+                  ) : (
+                    <div className="assistant-message-container">
+                      {renderAssistantMessage(message.content)}
+                    </div>
+                  )
                 ) : (
-                  <Card
-                    className={`p-4 max-w-[85%] ${
-                      message.role === "system"
-                        ? "bg-muted text-left"
-                        : "bg-primary text-primary-foreground text-right"
-                    }`}
-                  >
+                  <Card className={`p-4 max-w-[85%] ${message.role === "system" ? "bg-muted text-left" : "bg-primary text-primary-foreground text-right"}`}>
                     {message.content === "..." ? (
                       <div className="flex items-center">
                         <div className="thinking-dots"></div>
