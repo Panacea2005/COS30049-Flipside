@@ -25,7 +25,13 @@ import {
   Globe,
   Beaker,
   X,
-  Copy
+  Copy,
+  CheckIcon,
+  BarChartIcon,
+  ClockIcon,
+  CodeIcon,
+  ShieldIcon,
+  AlertCircleIcon,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { chatService, Message } from "./components/chatService";
@@ -44,6 +50,27 @@ import {
   useDisconnectWallet,
 } from "@mysten/dapp-kit"; // Sui wallet integration
 
+const modelOptions: Record<
+  string,
+  { name: string; tag: string; gradient: string }
+> = {
+  "qwen-2.5-coder-32b": {
+    name: "Qwen-2.5-Coder-32B",
+    tag: "Best for Coding",
+    gradient: "bg-gradient-to-r from-blue-500 to-purple-500",
+  },
+  "llama-3.3-70b-versatile": {
+    name: "Llama-3.3-70B-Versatile",
+    tag: "Gen AI & Reasoning",
+    gradient: "bg-gradient-to-r from-green-500 to-teal-500",
+  },
+  "mixtral-8x7b-32768": {
+    name: "Mixtral-8x7B-32768",
+    tag: "Fast & Balanced",
+    gradient: "bg-gradient-to-r from-yellow-500 to-orange-500",
+  },
+};
+
 export const FlidePage = () => {
   // Chat & file upload state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -55,8 +82,11 @@ export const FlidePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showInitialMessage, setShowInitialMessage] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState("qwen-2.5-coder-32b");
+  const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(
+    null
+  );
+  const [selectedModel, setSelectedModel] =
+    useState<keyof typeof modelOptions>("qwen-2.5-coder-32b");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +97,8 @@ export const FlidePage = () => {
   // MetaMask wallet state
   const [metaAccount, setMetaAccount] = useState<string>("");
   const [metaConnected, setMetaConnected] = useState<boolean>(false);
-  const [metaProvider, setMetaProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [metaProvider, setMetaProvider] =
+    useState<ethers.BrowserProvider | null>(null);
 
   const connectMetaMask = async () => {
     if (window.ethereum) {
@@ -504,39 +535,163 @@ export const FlidePage = () => {
     }
   }, [messages]);
 
-  // New function to copy text to clipboard
-  const handleCopyText = (text: string) => {
+  // State for tracking copy status
+  const [copied, setCopied] = useState(false);
+  const [copiedSuggestions, setCopiedSuggestions] = useState(false);
+
+  const handleCopyText = (
+    text: string,
+    type: "full" | "suggestions" = "full"
+  ) => {
     navigator.clipboard.writeText(text).then(() => {
-      toast({
-        title: "Copied!",
-        description: "The modified code has been copied to your clipboard.",
-      });
+      if (type === "full") {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        setCopiedSuggestions(true);
+        setTimeout(() => setCopiedSuggestions(false), 2000);
+      }
     });
   };
 
   const renderAnalysisResult = (analysis: any) => {
     return (
-      <>
-        <Card className="p-4 mb-2">
-          <h3 className="text-lg font-bold mb-2">Contract Analysis Statistics</h3>
-          <p><strong>Security Score:</strong> {analysis.securityScore}/100</p>
-          <p><strong>Scan Duration:</strong> {analysis.scanDuration}</p>
-          <p><strong>Lines of Code:</strong> {analysis.linesOfCode}</p>
-          <p><strong>Total Issues:</strong> {analysis.issuesCount}</p>
+      <div className="w-full flex flex-col space-y-6">
+        {/* Statistics Card with White Background */}
+        <Card className="w-full relative overflow-hidden rounded-xl shadow-lg border border-gray-100 bg-white">
+          {/* Copy Button with feedback */}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute right-4 top-4 z-10 hover:bg-gray-100 transition-all duration-200"
+            onClick={() => handleCopyText(JSON.stringify(analysis), "full")}
+          >
+            {copied ? (
+              <div className="flex items-center space-x-1">
+                <CheckIcon className="w-4 h-4 text-green-500" />
+                <span className="text-xs text-green-500 font-medium">
+                  Copied
+                </span>
+              </div>
+            ) : (
+              <Copy className="w-4 h-4 text-gray-500" />
+            )}
+          </Button>
+
+          {/* Content */}
+          <div className="p-6">
+            <h3 className="text-xl font-bold mb-6 text-gray-800 flex items-center">
+              <BarChartIcon className="w-5 h-5 mr-2 text-indigo-500" />
+              Contract Analysis Statistics
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <StatItem
+                label="Security Score"
+                value={`${analysis.securityScore}/100`}
+                icon={<ShieldIcon className="w-4 h-4 text-white" />}
+                color={
+                  analysis.securityScore < 50
+                    ? "text-red-500"
+                    : "text-green-500"
+                }
+                gradientClass={
+                  analysis.securityScore < 50
+                    ? "from-red-400 to-red-600"
+                    : "from-green-400 to-green-600"
+                }
+              />
+              <StatItem
+                label="Scan Duration"
+                value={analysis.scanDuration}
+                icon={<ClockIcon className="w-4 h-4 text-white" />}
+                color="text-blue-500"
+                gradientClass="from-blue-400 to-blue-600"
+              />
+              <StatItem
+                label="Lines of Code"
+                value={analysis.linesOfCode}
+                icon={<CodeIcon className="w-4 h-4 text-white" />}
+                color="text-purple-500"
+                gradientClass="from-purple-400 to-purple-600"
+              />
+              <StatItem
+                label="Total Issues"
+                value={analysis.issuesCount}
+                icon={<AlertCircleIcon className="w-4 h-4 text-white" />}
+                color="text-orange-500"
+                gradientClass="from-orange-400 to-orange-600"
+              />
+            </div>
+          </div>
         </Card>
+
+        {/* Code Suggestions Card */}
         {analysis.modificationSuggestions && (
-          <Card className="p-4 mb-2 bg-black text-white font-mono relative">
-            <div className="absolute top-2 right-2">
-              <Button size="icon" variant="ghost" onClick={() => handleCopyText(analysis.modificationSuggestions)}>
-                <Copy className="w-4 h-4" />
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-medium text-gray-800">
+                Suggested Modifications
+              </h3>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex items-center gap-1"
+                onClick={() =>
+                  handleCopyText(
+                    analysis.modificationSuggestions,
+                    "suggestions"
+                  )
+                }
+              >
+                {copiedSuggestions ? (
+                  <>
+                    <CheckIcon className="w-4 h-4 text-green-500" />
+                    <span className="text-xs text-green-500">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span className="text-xs">Copy code</span>
+                  </>
+                )}
               </Button>
             </div>
-            <pre>{analysis.modificationSuggestions}</pre>
-          </Card>
+
+            {/* Code Container */}
+            <div className="rounded-lg overflow-hidden border border-gray-200 shadow-md">
+              <pre className="bg-[#1E1E1E] text-[#D4D4D4] p-4 rounded-md overflow-x-auto text-sm leading-5">
+                <code className="font-mono whitespace-pre">
+                  {analysis.modificationSuggestions}
+                </code>
+              </pre>
+            </div>
+          </div>
         )}
-      </>
+      </div>
     );
   };
+
+  // Reusable component for stat items with gradient icon background
+  const StatItem: React.FC<{
+    label: string;
+    value: string;
+    icon: React.ReactNode;
+    color: string;
+    gradientClass: string;
+  }> = ({ label, value, icon, color, gradientClass }) => (
+    <div className="flex items-center space-x-3 p-3 rounded-lg border border-gray-100 shadow-sm bg-white">
+      <div
+        className={`flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br ${gradientClass}`}
+      >
+        {icon}
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 font-medium">{label}</p>
+        <p className={`text-lg font-bold ${color}`}>{value}</p>
+      </div>
+    </div>
+  );
 
   const renderAssistantMessage = (content: string) => {
     const paragraphs = content.split("\n\n");
@@ -575,22 +730,35 @@ export const FlidePage = () => {
       const contractLang = chatService.detectContractLanguage(codeContent);
       if (contractLang) {
         // Perform contract analysis without the word-by-word animation.
-        const analysis = await contractAnalyzer.analyzeContract(codeContent, selectedModel, contractLang);
+        const analysis = await contractAnalyzer.analyzeContract(
+          codeContent,
+          selectedModel,
+          contractLang
+        );
         // Replace the placeholder message with the analysis result.
-        setMessages((prev) => [...prev.slice(0, -1), { role: "assistant", content: "", analysisResult: analysis }]);
+        setMessages((prev) => [
+          ...prev.slice(0, -1),
+          { role: "assistant", content: "", analysisResult: analysis },
+        ]);
         setUploadedFileContent(null);
       } else {
-        const response = await chatService.sendMessage([userMessage], selectedModel);
+        const response = await chatService.sendMessage(
+          [userMessage],
+          selectedModel
+        );
         // Gradually display the bot's response
         let displayedResponse = "";
         const words = response.split(" ");
         for (let i = 0; i < words.length; i++) {
           displayedResponse += words[i] + " ";
           setMessages((prev) =>
-            prev.slice(0, -1).concat({ role: "assistant", content: displayedResponse })
+            prev
+              .slice(0, -1)
+              .concat({ role: "assistant", content: displayedResponse })
           );
           if (scrollAreaRef.current) {
-            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+            scrollAreaRef.current.scrollTop =
+              scrollAreaRef.current.scrollHeight;
           }
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
@@ -599,7 +767,8 @@ export const FlidePage = () => {
       console.error("Error in handleSend:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send message.",
+        description:
+          error instanceof Error ? error.message : "Failed to send message.",
         variant: "destructive",
       });
     } finally {
@@ -614,7 +783,9 @@ export const FlidePage = () => {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
@@ -813,22 +984,34 @@ export const FlidePage = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center gap-2 cursor-pointer">
-                <span>Model: {selectedModel}</span>
+                <span>Model: {modelOptions[selectedModel].name}</span>
+                <span
+                  className={`text-transparent bg-clip-text text-m font-bold ${modelOptions[selectedModel].gradient}`}
+                >
+                  {modelOptions[selectedModel].tag}
+                </span>
                 <Menu className="h-4 w-4" />
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setSelectedModel("qwen-2.5-coder-32b")}>
-                qwen-2.5-coder-32b
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedModel("llama-3.3-70b-versatile")}>
-                llama-3.3-70b-versatile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedModel("mixtral-8x7b-32768")}>
-                mixtral-8x7b-32768
-              </DropdownMenuItem>
+              {Object.entries(modelOptions).map(([modelKey, modelData]) => (
+                <DropdownMenuItem
+                  key={modelKey}
+                  onClick={() => setSelectedModel(modelKey)}
+                >
+                  <div className="flex justify-between items-center w-full">
+                    <span>{modelData.name}</span>
+                    <span
+                      className={`ml-5 text-transparent bg-clip-text text-m font-bold ${modelData.gradient}`}
+                    >
+                      {modelData.tag}
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          ;
         </div>
         {showInitialMessage && (
           <div className="flex-1 flex items-center justify-center">
@@ -837,10 +1020,20 @@ export const FlidePage = () => {
             </h1>
           </div>
         )}
-        <ScrollArea ref={scrollAreaRef} className={`flex-1 px-4 py-4 ${showInitialMessage ? "hidden" : "block"}`}>
+        <ScrollArea
+          ref={scrollAreaRef}
+          className={`flex-1 px-4 py-4 ${
+            showInitialMessage ? "hidden" : "block"
+          }`}
+        >
           <div className="space-y-4 max-w-3xl mx-auto">
             {messages.map((message, index) => (
-              <div key={index} className={`flex gap-3 ${message.role === "assistant" ? "justify-start" : "justify-end"}`}>
+              <div
+                key={index}
+                className={`flex gap-3 ${
+                  message.role === "assistant" ? "justify-start" : "justify-end"
+                }`}
+              >
                 {message.role === "assistant" && (
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-r from-pink-500 to-blue-500">
                     <Bot className="w-5 h-5 text-white" />
@@ -855,7 +1048,13 @@ export const FlidePage = () => {
                     </div>
                   )
                 ) : (
-                  <Card className={`p-4 max-w-[85%] ${message.role === "system" ? "bg-muted text-left" : "bg-primary text-primary-foreground text-right"}`}>
+                  <Card
+                    className={`p-4 max-w-[85%] ${
+                      message.role === "system"
+                        ? "bg-muted text-left"
+                        : "bg-primary text-primary-foreground text-right"
+                    }`}
+                  >
                     {message.content === "..." ? (
                       <div className="flex items-center">
                         <div className="thinking-dots"></div>

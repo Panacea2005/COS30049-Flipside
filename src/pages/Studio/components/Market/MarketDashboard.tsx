@@ -63,12 +63,16 @@ interface CoinOption {
 }
 
 const COINS: CoinOption[] = [
-  { id: "bitcoin", name: "Bitcoin", icon: "/bitcoin.svg" },
-  { id: "ethereum", name: "Ethereum", icon: "/eth.svg" },
-  { id: "dogecoin", name: "Dogecoin", icon: "/dogecoin.svg" },
-  { id: "litecoin", name: "Litecoin", icon: "/litecoin.svg" },
+  { id: "bitcoin", name: "BTC", icon: "/bitcoin.svg" },
+  { id: "ethereum", name: "ETH", icon: "/eth.svg" },
+  { id: "dogecoin", name: "DOGE", icon: "/dogecoin.svg" },
+  { id: "litecoin", name: "LTC", icon: "/litecoin.svg" },
   { id: "ripple", name: "XRP", icon: "/xrp.svg" },
-  { id: "cardano", name: "Cardano", icon: "/cardano.svg" },
+  { id: "cardano", name: "ADA", icon: "/cardano.svg" },
+  { id: "tether", name: "USDT", icon: "/usdt.svg" },
+  { id: "binancecoin", name: "BNB", icon: "/bnb.svg" },
+  { id: "solana", name: "SOL", icon: "/solana.svg" },
+  { id: "staked-ether", name: "STETH", icon: "/steth.svg" },
 ];
 
 export const MarketDashboard: React.FC = () => {
