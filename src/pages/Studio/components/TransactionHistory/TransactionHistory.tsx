@@ -46,7 +46,7 @@ export const TransactionHistory = () => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-3xl font-semibold leading-tight tracking-tight">Transaction History</h1>
+      <h1 className="text-3xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-600">Transaction History</h1>
       {error && <div className="text-red-500">{error}</div>}
       {loading ? (
         <div>Loading transactions...</div>

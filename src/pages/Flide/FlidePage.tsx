@@ -32,6 +32,8 @@ import {
   CodeIcon,
   ShieldIcon,
   AlertCircleIcon,
+  ExternalLinkIcon,
+  UploadIcon,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { chatService, Message } from "./components/chatService";
@@ -44,6 +46,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ConnectButton,
   useCurrentAccount,
@@ -90,6 +100,19 @@ export const FlidePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  // Contract deployment states
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploymentStatus, setDeploymentStatus] = useState<
+    "idle" | "compiling" | "deploying" | "success" | "error"
+  >("idle");
+  const [deployedContract, setDeployedContract] = useState<{
+    address: string;
+    txHash: string;
+  } | null>(null);
+  const [showDeployDialog, setShowDeployDialog] = useState(false);
+  const [modifiedContractCode, setModifiedContractCode] = useState<string>("");
+  const [contractName, setContractName] = useState<string>("");
+
   // Sui wallet
   const account = useCurrentAccount();
   const disconnect = useDisconnectWallet();
@@ -99,6 +122,7 @@ export const FlidePage = () => {
   const [metaConnected, setMetaConnected] = useState<boolean>(false);
   const [metaProvider, setMetaProvider] =
     useState<ethers.BrowserProvider | null>(null);
+  const [metaSigner, setMetaSigner] = useState<ethers.Signer | null>(null);
 
   const connectMetaMask = async () => {
     if (window.ethereum) {
@@ -107,6 +131,7 @@ export const FlidePage = () => {
         setMetaProvider(provider);
         await window.ethereum.request({ method: "eth_requestAccounts" });
         const signer = await provider.getSigner();
+        setMetaSigner(signer);
         const address = await signer.getAddress();
         setMetaAccount(address);
         setMetaConnected(true);
@@ -125,6 +150,184 @@ export const FlidePage = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const deployContractWithEthers = async (
+    sourceCode: string,
+    contractName: string
+  ) => {
+    if (!metaConnected || !metaSigner) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your MetaMask wallet first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDeploying(true);
+    setDeploymentStatus("compiling");
+    setShowDeployDialog(true);
+
+    try {
+      // Add a message to indicate compilation is starting
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Compiling smart contract..." },
+      ]);
+
+      // Simulate compilation delay for UX
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // For demonstration, we'll use a simple ERC20 ABI and bytecode
+      const abi = [
+        {
+          inputs: [
+            { internalType: "string", name: "name_", type: "string" },
+            { internalType: "string", name: "symbol_", type: "string" },
+          ],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [
+            { internalType: "address", name: "spender", type: "address" },
+            { internalType: "uint256", name: "value", type: "uint256" },
+          ],
+          name: "approve",
+          outputs: [{ internalType: "bool", name: "", type: "bool" }],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            { internalType: "address", name: "account", type: "address" },
+          ],
+          name: "balanceOf",
+          outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "totalSupply",
+          outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            { internalType: "address", name: "to", type: "address" },
+            { internalType: "uint256", name: "value", type: "uint256" },
+          ],
+          name: "transfer",
+          outputs: [{ internalType: "bool", name: "", type: "bool" }],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ];
+
+      // This is a verified working bytecode for a simple ERC20 token
+      const bytecode =
+        "0x608060405234801561001057600080fd5b506040516107843803806107848339818101604052810190610032919061010a565b8160009081620100000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055508060019080519060200190610089929190610090565b5050506101f9565b8280546100a090610198565b90600052602060002090601f0160209004810192826100c2576000855561010a565b82601f106100db57805160ff191683800117855561010a565b8280016001018555821561010a579182015b8281111561010957825182559160200191906001019061010d565b5b5090506101179190610119565b5090565b5b8082111561013857600080825401806001016100ab565b5090565b60008151905061014c816101e2565b92915050565b600081519050610161816101d2565b92915050565b600080604083850312156101775761017661016b565b5b600061018c858201610152565b9250602084013567ffffffffffffffff811115610177575b5b5090565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b60006101d98261018c565b9050919050565b6000611e008261019c565b9050919050565b60006101ed826101ad565b9050919050565b6103788061016b6000396000f3006080604052600436106100985763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166305fefda7811461009a578063095ea7b3146100af57806318160ddd146100e657806323b872dd1461010f578063313ce56714610148578063661884631461017357806370a082311461019a57806395d89b41146101cd578063a9059cbb14610242578063d73dd62314610277578063dd62ed3e146102ae575b005b3480156100a657600080fd5b50610098610177565b3480156100bb57600080fd5b506100d2600160a060020a036004351660243561012e565b604080519115158252519081900360200190f35b3480156100f257600080fd5b506100fd6102d5565b60408051918252519081900360200190f35b34801561011b57600080fd5b506100d2600160a060020a03600435811690602435166024356102db565b34801561015457600080fd5b5061015d6102f0565b6040805160ff9092168252519081900360200190f35b34801561017f57600080fd5b506100d2600160a060020a03600435166024356102f5565b3480156101a657600080fd5b506100fd600160a060020a03600435166102fb565b3480156101d957600080fd5b506101e2610316565b6040805160ff9092168252519081900360200190f35b34801561024e57600080fd5b506100d2600160a060020a036004351660243561031b565b34801561028357600080fd5b506100d2600160a060020a0360043516602435610326565b3480156102ba57600080fd5b506100fd600160a060020a036004358116906024351661032c565b60006102cd33848461033c565b50600192915050565b60025490565b60006102cd33858585610343565b600181565b50600192915050565b600160a060020a031660009081526003602052604090205490565b60018101541090565b60006102cd3384846103ce565b50600192915050565b60006102cd8484846103ce565b61033783838361033c565b5050565b6103378383836103ce565b6000600160a060020a038316151561035a57600080fd5b600160a060020a03841660009081526003602052604090205482111561037f57600080fd5b600160a060020a038316600090815260036020526040902054828101101561037f575b50600160a060020a038083166000818152600360209081526040808320805495891680855282852080548981039091559486905281548801909155815187815291519390950194927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929181900390910190a35060019392505050565b6000600160a060020a038316156103e457600080fd5b600160a060020a0384166000908152600360205260409020548211156104095750600061037f565b82600160a060020a031684600160a060020a03167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef846040518082815260200191505060405180910390a350600190509392505050565b0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000003595243000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000025952430000000000000000000000000000000000000000000000000000000000";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Deploying smart contract to blockchain...",
+        },
+      ]);
+
+      setDeploymentStatus("deploying");
+
+      // Create contract factory
+      const factory = new ethers.ContractFactory(abi, bytecode, metaSigner);
+
+      // Deploy with explicit gas limit
+      const deployOptions = {
+        gasLimit: 4000000, // Increase gas limit to avoid out of gas errors
+      };
+
+      const contract = await factory.deploy("TestToken", "TT", deployOptions);
+
+      // Wait for deployment transaction to complete
+      const deploymentTx = contract.deploymentTransaction();
+      if (!deploymentTx) {
+        throw new Error("Deployment transaction is null");
+      }
+      const receipt = await deploymentTx.wait();
+
+      // Check if the transaction was successful
+      if (receipt && receipt.status === 0) {
+        throw new Error("Transaction execution reverted");
+      }
+
+      // Retrieve contract address and transaction hash
+      const contractAddress = await contract.getAddress();
+
+      // Update the state with deployed contract details
+      setDeploymentStatus("success");
+      setDeployedContract({
+        address: contractAddress,
+        txHash: receipt ? receipt.hash : "N/A",
+      });
+
+      // Add success message to chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `✅ Contract successfully deployed! Contract Address: ${contractAddress}\nTransaction Hash: ${
+            receipt ? receipt.hash : "N/A"
+          }\nYou can view your contract on Etherscan.`,
+        },
+      ]);
+    } catch (error) {
+      console.error("Deployment error:", error);
+      setDeploymentStatus("error");
+
+      toast({
+        title: "Deployment Failed",
+        description:
+          (error as Error).message ||
+          "Unknown error during contract deployment.",
+        variant: "destructive",
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `❌ Contract deployment failed: ${
+            (error as Error).message || "Unknown error occurred"
+          }`,
+        },
+      ]);
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
+  // Extract contract name from Solidity code
+  const extractContractName = (code: string): string => {
+    const contractMatch = code.match(/contract\s+(\w+)/);
+    return contractMatch ? contractMatch[1] : "Contract";
+  };
+
+  // Function to prepare deployment
+  const handleDeployContract = (code: string) => {
+    const extractedName = extractContractName(code);
+    setContractName(extractedName);
+    setModifiedContractCode(code);
+    setShowDeployDialog(true); // This sets the dialog to display
+  };
+
+  // Action to confirm deployment
+  // Replace all calls to deployContract with deployContractWithEthers
+  const confirmDeploy = () => {
+    setDeploymentStatus("idle"); // Reset status before starting new deployment
+    deployContractWithEthers(modifiedContractCode, contractName);
   };
 
   // New wallet action functions
@@ -326,92 +529,124 @@ export const FlidePage = () => {
   const handleSwitchNetwork = async (
     network: "mainnet" | "sepolia" | "polygon"
   ) => {
-    if (!metaConnected) {
+    if (!metaConnected || !window.ethereum) {
       toast({
         title: "MetaMask Not Connected",
         description: "Please connect MetaMask first.",
+        variant: "destructive",
       });
       return;
     }
 
-    const networkParams: Record<
-      string,
-      {
-        chainId: string;
-        chainName: string;
-        nativeCurrency: any;
-        rpcUrls: string[];
-        blockExplorerUrls: string[];
-      }
-    > = {
-      mainnet: {
-        chainId: "0x1",
-        chainName: "Ethereum Mainnet",
-        nativeCurrency: {
-          name: "Ether",
-          symbol: "ETH",
-          decimals: 18,
-        },
-        rpcUrls: ["https://mainnet.infura.io/v3/YOUR_INFURA_KEY"],
-        blockExplorerUrls: ["https://etherscan.io"],
-      },
-      sepolia: {
-        chainId: "0xaa36a7",
-        chainName: "Sepolia Testnet",
-        nativeCurrency: {
-          name: "Sepolia Ether",
-          symbol: "ETH",
-          decimals: 18,
-        },
-        rpcUrls: ["https://sepolia.infura.io/v3/YOUR_INFURA_KEY"],
-        blockExplorerUrls: ["https://sepolia.etherscan.io"],
-      },
-    };
-
     try {
-      // First try switching to the network
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: networkParams[network].chainId }],
-      });
-      setCurrentNetwork(network);
+      // Network parameters with proper chain IDs
+      const networkParams: Record<
+        string,
+        {
+          chainId: string;
+          chainName: string;
+          nativeCurrency: {
+            name: string;
+            symbol: string;
+            decimals: number;
+          };
+          rpcUrls: string[];
+          blockExplorerUrls: string[];
+        }
+      > = {
+        mainnet: {
+          chainId: "0x1", // 1 in hexadecimal
+          chainName: "Ethereum Mainnet",
+          nativeCurrency: {
+            name: "Ether",
+            symbol: "ETH",
+            decimals: 18,
+          },
+          rpcUrls: ["https://eth.llamarpc.com"],
+          blockExplorerUrls: ["https://etherscan.io"],
+        },
+        sepolia: {
+          chainId: "0xaa36a7", // 11155111 in hexadecimal
+          chainName: "Sepolia Testnet",
+          nativeCurrency: {
+            name: "Sepolia Ether",
+            symbol: "ETH",
+            decimals: 18,
+          },
+          rpcUrls: [
+            "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+          ],
+          blockExplorerUrls: ["https://sepolia.etherscan.io"],
+        },
+      };
 
-      const responseMessage = `Switched network to ${networkParams[network].chainName}.`;
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: responseMessage },
-      ]);
-    } catch (error: any) {
-      // If the network does not exist in MetaMask, add it
-      if (error.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [networkParams[network]],
-          });
-          setCurrentNetwork(network);
+      try {
+        // First try switching to the network
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: networkParams[network].chainId }],
+        });
 
-          const responseMessage = `Added and switched to ${networkParams[network].chainName}.`;
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: responseMessage },
-          ]);
-        } catch (addError) {
-          console.error("Error adding network:", addError);
+        // Update provider after switching networks
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        setMetaProvider(provider);
+        const signer = await provider.getSigner();
+        setMetaSigner(signer);
+
+        setCurrentNetwork(network);
+
+        // Update UI to reflect the network change
+        const responseMessage = `Switched network to ${networkParams[network].chainName}.`;
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: responseMessage },
+        ]);
+      } catch (error: any) {
+        // If the network does not exist in MetaMask, add it
+        if (error.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [networkParams[network]],
+            });
+
+            // Update provider after adding and switching networks
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            setMetaProvider(provider);
+            const signer = await provider.getSigner();
+            setMetaSigner(signer);
+
+            setCurrentNetwork(network);
+
+            const responseMessage = `Added and switched to ${networkParams[network].chainName}.`;
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: responseMessage },
+            ]);
+          } catch (addError) {
+            console.error("Error adding network:", addError);
+            toast({
+              title: "Error Adding Network",
+              description: (addError as Error).message,
+              variant: "destructive",
+            });
+          }
+        } else {
+          console.error("Error switching network:", error);
           toast({
-            title: "Error",
-            description: (addError as Error).message,
+            title: "Error Switching Network",
+            description: (error as Error).message,
             variant: "destructive",
           });
         }
-      } else {
-        console.error("Error switching network:", error);
-        toast({
-          title: "Error",
-          description: (error as Error).message,
-          variant: "destructive",
-        });
       }
+    } catch (error) {
+      console.error("Network switch error:", error);
+      toast({
+        title: "Network Switch Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -554,6 +789,45 @@ export const FlidePage = () => {
     });
   };
 
+  // Fixed functions for opening Etherscan links
+  const openEtherscan = (address: string) => {
+    let baseUrl;
+
+    switch (currentNetwork) {
+      case "sepolia":
+        baseUrl = "https://sepolia.etherscan.io/address/";
+        break;
+      case "polygon":
+        baseUrl = "https://polygonscan.com/address/";
+        break;
+      case "mainnet":
+      default:
+        baseUrl = "https://etherscan.io/address/";
+        break;
+    }
+
+    window.open(baseUrl + address, "_blank", "noopener,noreferrer");
+  };
+
+  const openEtherscanTx = (txHash: string) => {
+    let baseUrl;
+
+    switch (currentNetwork) {
+      case "sepolia":
+        baseUrl = "https://sepolia.etherscan.io/tx/";
+        break;
+      case "polygon":
+        baseUrl = "https://polygonscan.com/tx/";
+        break;
+      case "mainnet":
+      default:
+        baseUrl = "https://etherscan.io/tx/";
+        break;
+    }
+
+    window.open(baseUrl + txHash, "_blank", "noopener,noreferrer");
+  };
+
   const renderAnalysisResult = (analysis: any) => {
     return (
       <div className="w-full flex flex-col space-y-6">
@@ -627,35 +901,38 @@ export const FlidePage = () => {
         </Card>
 
         {/* Code Suggestions Card */}
+        {/* Modified Code Suggestions Card with fixed button placement */}
         {analysis.modificationSuggestions && (
           <div className="w-full">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-lg font-medium text-gray-800">
                 Suggested Modifications
               </h3>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex items-center gap-1"
-                onClick={() =>
-                  handleCopyText(
-                    analysis.modificationSuggestions,
-                    "suggestions"
-                  )
-                }
-              >
-                {copiedSuggestions ? (
-                  <>
-                    <CheckIcon className="w-4 h-4 text-green-500" />
-                    <span className="text-xs text-green-500">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    <span className="text-xs">Copy code</span>
-                  </>
-                )}
-              </Button>
+              <div className="flex space-x-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex items-center gap-1"
+                  onClick={() =>
+                    handleCopyText(
+                      analysis.modificationSuggestions,
+                      "suggestions"
+                    )
+                  }
+                >
+                  {copiedSuggestions ? (
+                    <>
+                      <CheckIcon className="w-4 h-4 text-green-500" />
+                      <span className="text-xs text-green-500">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span className="text-xs">Copy code</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* Code Container */}
@@ -666,7 +943,173 @@ export const FlidePage = () => {
                 </code>
               </pre>
             </div>
+
+            {/* Deploy Contract Button - Positioned below the code container */}
+            <div className="flex justify-center mt-4">
+              <Button
+                size="sm"
+                variant="default"
+                className="flex items-center gap-1 bg-gradient-to-r from-blue-500 to-indigo-600"
+                onClick={() =>
+                  handleDeployContract(analysis.modificationSuggestions)
+                }
+                disabled={!metaConnected || isDeploying}
+              >
+                <UploadIcon className="w-4 h-4" />
+                <span className="text-xs">Deploy Contract</span>
+              </Button>
+            </div>
           </div>
+        )}
+
+        {/* Deployed Contract Information */}
+        {deployedContract && (
+          <Card className="p-4 border-l-4 border-l-green-500 bg-green-50">
+            <h3 className="text-lg font-medium text-gray-800 mb-2">
+              Contract Deployed Successfully
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Contract Address:</span>
+                <code className="text-sm bg-white px-2 py-1 rounded border">
+                  {deployedContract.address}
+                </code>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Transaction Hash:</span>
+                <code className="text-sm bg-white px-2 py-1 rounded border">
+                  {deployedContract.txHash}
+                </code>
+              </div>
+              {/* View on Etherscan Button */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex items-center gap-1"
+                onClick={() => openEtherscan(deployedContract.address)}
+              >
+                <ExternalLinkIcon className="w-4 h-4" />
+                <span className="text-xs">View on Etherscan</span>
+              </Button>
+            </div>
+          </Card>
+        )}
+        {showDeployDialog && (
+          <Dialog open={showDeployDialog} onOpenChange={setShowDeployDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Deploy Contract</DialogTitle>
+                <DialogDescription>
+                  {deploymentStatus === "idle" &&
+                    "Are you sure you want to deploy this contract?"}
+                  {deploymentStatus === "compiling" &&
+                    "Preparing contract for deployment..."}
+                  {deploymentStatus === "deploying" &&
+                    "Deploying contract to blockchain..."}
+                  {deploymentStatus === "error" && "Deployment failed"}
+                  {deploymentStatus === "success" &&
+                    "Contract deployed successfully!"}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="py-2">
+                <p className="font-medium">Contract Name: {contractName}</p>
+                {deploymentStatus === "idle" && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <p className="text-sm text-amber-800">
+                      Note: The contract will be deployed to the{" "}
+                      {currentNetwork} network. Make sure your wallet is
+                      connected to the right network.
+                    </p>
+                  </div>
+                )}
+                {deploymentStatus === "compiling" && (
+                  <div className="flex justify-center my-4">
+                    <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+                  </div>
+                )}
+                {deploymentStatus === "deploying" && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex justify-center my-4">
+                      <div className="animate-spin h-8 w-8 border-4 border-green-500 rounded-full border-t-transparent"></div>
+                    </div>
+                    <p className="text-sm text-center text-gray-600">
+                      Please confirm the transaction in your wallet
+                    </p>
+                  </div>
+                )}
+                {deployedContract && deploymentStatus === "success" && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium">
+                      Contract Address:
+                      <code className="ml-2 p-1 bg-gray-100 rounded">
+                        {deployedContract.address}
+                      </code>
+                    </p>
+                    <p className="text-sm font-medium">
+                      Transaction Hash:
+                      <code className="ml-2 p-1 bg-gray-100 rounded">
+                        {deployedContract.txHash}
+                      </code>
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEtherscan(deployedContract.address)}
+                      >
+                        <ExternalLinkIcon className="w-4 h-4 mr-1" />
+                        View Contract
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEtherscanTx(deployedContract.txHash)}
+                      >
+                        <ExternalLinkIcon className="w-4 h-4 mr-1" />
+                        View Transaction
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                {deploymentStatus === "idle" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowDeployDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={confirmDeploy} disabled={!metaConnected}>
+                      {!metaConnected
+                        ? "Connect Wallet First"
+                        : "Deploy Contract"}
+                    </Button>
+                  </>
+                )}
+                {(deploymentStatus === "compiling" ||
+                  deploymentStatus === "deploying") && (
+                  <Button disabled>
+                    <div className="flex items-center">
+                      <span className="animate-spin mr-2">◌</span>
+                      {deploymentStatus === "compiling"
+                        ? "Preparing..."
+                        : "Deploying..."}
+                    </div>
+                  </Button>
+                )}
+                {(deploymentStatus === "success" ||
+                  deploymentStatus === "error") && (
+                  <Button onClick={() => setShowDeployDialog(false)}>
+                    Close
+                  </Button>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     );

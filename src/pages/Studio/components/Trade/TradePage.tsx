@@ -471,7 +471,7 @@ export default function EnhancedTradePage() {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <header className="mb-8 flex flex-col md:flex-row justify-between items-center">
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 to-purple-600">
+          <h1 className="text-3xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 to-purple-600">
             TokenSwift
           </h1>
 

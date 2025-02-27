@@ -241,7 +241,7 @@ export const MarketDashboard: React.FC = () => {
     <div className="p-6 space-y-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       {/* Header & Coin Selector */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-wide">
+        <h1 className="text-3xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-green-600">
           Crypto Market Dashboard
         </h1>
         <Select value={selectedCoin} onValueChange={setSelectedCoin}>

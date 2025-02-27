@@ -40,7 +40,7 @@ export const VisualizationPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <h1 className="text-3xl font-semibold leading-tight tracking-tight">Transaction Visualization</h1>
+      <h1 className="text-3xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-pink-800">Transaction Visualization</h1>
       <div className="p-6">
         {/* Search Bar */}
         <div className="mb-6">
