@@ -6,7 +6,15 @@ import {
   Contract,
   isAddress,
 } from "ethers";
-import { Loader2, CheckCircle, AlertTriangle, ArrowRight } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle,
+  AlertTriangle,
+  Wallet,
+  RefreshCw,
+  Search,
+  LogOut,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,11 +35,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Minimal ERC-20 ABI for transfer and balance checking
 const ERC20_ABI = [
@@ -47,14 +56,24 @@ const NETWORKS = {
   mainnet: {
     name: "Ethereum Mainnet",
     chainId: 1,
-    rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY", // Replace with your Infura key
+    rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY",
     blockExplorer: "https://etherscan.io",
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
   },
   sepolia: {
     name: "Sepolia Testnet",
     chainId: 11155111,
-    rpcUrl: "https://sepolia.infura.io/v3/YOUR_INFURA_KEY", // Replace with your Infura key
+    rpcUrl: "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
     blockExplorer: "https://sepolia.etherscan.io",
+    nativeCurrency: {
+      name: "Sepolia Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
   },
 };
 
@@ -62,81 +81,121 @@ const NETWORKS = {
 const POPULAR_TOKENS = {
   mainnet: [
     {
+      symbol: "ETH",
+      address: "NATIVE",
+      decimals: 18,
+      name: "Ethereum",
+      logoURI: "/api/placeholder/32/32",
+    },
+    {
       symbol: "USDC",
       address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       decimals: 6,
+      name: "USD Coin",
+      logoURI: "/api/placeholder/32/32",
     },
     {
       symbol: "USDT",
       address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
       decimals: 6,
+      name: "Tether USD",
+      logoURI: "/api/placeholder/32/32",
     },
     {
       symbol: "DAI",
       address: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
       decimals: 18,
+      name: "Dai Stablecoin",
+      logoURI: "/api/placeholder/32/32",
     },
     {
       symbol: "WETH",
       address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
       decimals: 18,
+      name: "Wrapped Ether",
+      logoURI: "/api/placeholder/32/32",
     },
   ],
   sepolia: [
     {
+      symbol: "ETH",
+      address: "NATIVE",
+      decimals: 18,
+      name: "Sepolia Ether",
+      logoURI: "/api/placeholder/32/32",
+    },
+    {
       symbol: "TEST USDC",
       address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
       decimals: 6,
-    }, // Example address - replace with actual Sepolia token addresses
+      name: "Test USD Coin",
+      logoURI: "/api/placeholder/32/32",
+    },
     {
-      symbol: "TEST DAI",
-      address: "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6",
-      decimals: 18,
+      symbol: "TEST USDT",
+      address: "0xf4Ca1a280ebcedda9b860d85872807a8b7ba0296",
+      decimals: 6,
+      name: "Test Tether USD",
+      logoURI: "/api/placeholder/32/32",
     },
   ],
 };
+
+// Common ERC-20 token addresses to check on Sepolia
+const COMMON_SEPOLIA_TOKENS = [
+  "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // TEST USDC
+];
+
+interface TokenData {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  balance: string;
+  logoURI: string;
+  isNative?: boolean;
+}
+
+interface Transaction {
+  hash: string;
+  to: string;
+  amount: string;
+  symbol: string;
+  status: "pending" | "success" | "error";
+  timestamp: number;
+  tokenAddress: string;
+}
 
 export default function EnhancedTradePage() {
   // State variables
   const [tokenAddress, setTokenAddress] = useState("");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
-  const [network, setNetwork] = useState("mainnet");
+  const [network, setNetwork] = useState("sepolia");
   const [loading, setLoading] = useState(false);
+  const [scanningTokens, setScanningTokens] = useState(false);
   const [txHash, setTxHash] = useState("");
   const [txStatus, setTxStatus] = useState<
     "pending" | "success" | "error" | null
   >(null);
   const [connected, setConnected] = useState(false);
   const [account, setAccount] = useState("");
-  const [tokenInfo, setTokenInfo] = useState<{
-    name: string;
-    symbol: string;
-    decimals: number;
-    balance: string;
-  } | null>(null);
-  const [transactionHistory, setTransactionHistory] = useState<
-    Array<{
-      hash: string;
-      to: string;
-      amount: string;
-      symbol: string;
-      status: "pending" | "success" | "error";
-      timestamp: number;
-    }>
-  >([]);
+  const [ethBalance, setEthBalance] = useState("");
+  const [tokenInfo, setTokenInfo] = useState<TokenData | null>(null);
+  const [walletTokens, setWalletTokens] = useState<TokenData[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [transactionHistory, setTransactionHistory] = useState<Transaction[]>(
+    []
+  );
+  const [showTokenSelector, setShowTokenSelector] = useState(false);
 
-  // Connect wallet on component mount
+  // Connect wallet on mount and setup listeners
   useEffect(() => {
     checkIfWalletIsConnected();
-
-    // Setup wallet event listeners
     if (window.ethereum) {
       window.ethereum.on("accountsChanged", handleAccountsChanged);
       window.ethereum.on("chainChanged", handleChainChanged);
     }
-
-    // Cleanup listeners
     return () => {
       if (window.ethereum) {
         window.ethereum.removeListener(
@@ -148,10 +207,12 @@ export default function EnhancedTradePage() {
     };
   }, []);
 
-  // Check token info when address or account changes
+  // Fetch token info when tokenAddress or account changes
   useEffect(() => {
-    if (isAddress(tokenAddress) && connected && account) {
-      fetchTokenInfo();
+    if (tokenAddress === "NATIVE") {
+      fetchNativeTokenInfo();
+    } else if (isAddress(tokenAddress) && connected && account) {
+      fetchTokenInfo(tokenAddress);
     } else {
       setTokenInfo(null);
     }
@@ -159,33 +220,48 @@ export default function EnhancedTradePage() {
 
   // Load transactions from localStorage
   useEffect(() => {
-    const savedTransactions = localStorage.getItem(`transactions_${account}`);
-    if (savedTransactions) {
-      setTransactionHistory(JSON.parse(savedTransactions));
+    if (account) {
+      const savedTransactions = localStorage.getItem(
+        `transactions_${account}_${network}`
+      );
+      if (savedTransactions) {
+        setTransactionHistory(JSON.parse(savedTransactions));
+      } else {
+        setTransactionHistory([]);
+      }
     }
-  }, [account]);
+  }, [account, network]);
 
   // Save transactions to localStorage when they change
   useEffect(() => {
     if (account && transactionHistory.length > 0) {
       localStorage.setItem(
-        `transactions_${account}`,
+        `transactions_${account}_${network}`,
         JSON.stringify(transactionHistory)
       );
     }
-  }, [transactionHistory, account]);
+  }, [transactionHistory, account, network]);
 
-  // Handle wallet connection
+  // Wallet connection
   const checkIfWalletIsConnected = async () => {
     try {
       if (window.ethereum) {
         const accounts = await window.ethereum.request({
           method: "eth_accounts",
         });
-
         if (accounts.length > 0) {
           setAccount(accounts[0]);
           setConnected(true);
+          const provider = new BrowserProvider(window.ethereum);
+          const networkInfo = await provider.getNetwork();
+          const chainId = Number(networkInfo.chainId);
+          if (chainId === NETWORKS.mainnet.chainId) {
+            setNetwork("mainnet");
+          } else if (chainId === NETWORKS.sepolia.chainId) {
+            setNetwork("sepolia");
+          }
+          fetchNativeBalance();
+          scanForTokens();
         }
       }
     } catch (error) {
@@ -193,29 +269,36 @@ export default function EnhancedTradePage() {
     }
   };
 
-  // Handle account changes
   const handleAccountsChanged = (accounts: string[]) => {
     if (accounts.length === 0) {
       setConnected(false);
       setAccount("");
+      setWalletTokens([]);
     } else {
       setAccount(accounts[0]);
       setConnected(true);
+      fetchNativeBalance();
+      scanForTokens();
     }
   };
 
-  // Handle network changes
   const handleChainChanged = () => {
     window.location.reload();
   };
 
-  // Connect wallet
+  // Disconnect the wallet
+  const disconnectWallet = () => {
+    setConnected(false);
+    setAccount("");
+    setEthBalance("");
+    setWalletTokens([]);
+  };
+
   const connectWallet = async () => {
     if (!window.ethereum) {
       alert("Please install MetaMask to use this application");
       return;
     }
-
     try {
       setLoading(true);
       const accounts = await window.ethereum.request({
@@ -223,6 +306,16 @@ export default function EnhancedTradePage() {
       });
       setAccount(accounts[0]);
       setConnected(true);
+      const provider = new BrowserProvider(window.ethereum);
+      const networkInfo = await provider.getNetwork();
+      const chainId = Number(networkInfo.chainId);
+      if (chainId === NETWORKS.mainnet.chainId) {
+        setNetwork("mainnet");
+      } else if (chainId === NETWORKS.sepolia.chainId) {
+        setNetwork("sepolia");
+      }
+      fetchNativeBalance();
+      scanForTokens();
     } catch (error) {
       console.error("Failed to connect wallet:", error);
     } finally {
@@ -230,12 +323,315 @@ export default function EnhancedTradePage() {
     }
   };
 
-  // Switch network
+  const fetchNativeBalance = async () => {
+    if (!connected || !window.ethereum) return;
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const balance = await provider.getBalance(account);
+      const formattedBalance = formatUnits(balance, 18);
+      setEthBalance(formattedBalance);
+      const ethToken: TokenData = {
+        address: "NATIVE",
+        symbol:
+          NETWORKS[network as keyof typeof NETWORKS].nativeCurrency.symbol,
+        name: NETWORKS[network as keyof typeof NETWORKS].nativeCurrency.name,
+        decimals:
+          NETWORKS[network as keyof typeof NETWORKS].nativeCurrency.decimals,
+        balance: formattedBalance,
+        logoURI: "/api/placeholder/32/32",
+        isNative: true,
+      };
+      setWalletTokens((prev) => {
+        const existing = prev.findIndex((t) => t.isNative);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = ethToken;
+          return updated;
+        } else {
+          return [ethToken, ...prev];
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching native balance:", error);
+    }
+  };
+
+  const fetchNativeTokenInfo = async () => {
+    if (!connected) return;
+    try {
+      const nativeCurrency =
+        NETWORKS[network as keyof typeof NETWORKS].nativeCurrency;
+      setTokenInfo({
+        address: "NATIVE",
+        symbol: nativeCurrency.symbol,
+        name: nativeCurrency.name,
+        decimals: nativeCurrency.decimals,
+        balance: ethBalance,
+        logoURI: "/api/placeholder/32/32",
+        isNative: true,
+      });
+    } catch (error) {
+      console.error("Error setting native token info:", error);
+    }
+  };
+
+  const scanForTokens = async () => {
+    if (!connected || !account) return;
+    try {
+      setScanningTokens(true);
+
+      // First fetch native balance to ensure it's always present
+      await fetchNativeBalance();
+
+      // Create a map to store token data by address (lowercase for case-insensitive comparison)
+      const tokenMap = new Map<string, TokenData>();
+
+      // Add tokens we find to this map
+      const addToken = (token: TokenData) => {
+        if (token && token.address) {
+          const lowerAddress = token.address.toLowerCase();
+          // Only update if not exists or if we have a better balance value
+          if (
+            !tokenMap.has(lowerAddress) ||
+            (parseFloat(token.balance) > 0 &&
+              parseFloat(tokenMap.get(lowerAddress)!.balance) === 0)
+          ) {
+            tokenMap.set(lowerAddress, token);
+          }
+        }
+      };
+
+      // Method 1: Try Etherscan API
+      try {
+        await fetchTokensFromEtherscan(addToken);
+      } catch (error) {
+        console.error("Error fetching from Etherscan:", error);
+      }
+
+      // Method 3: Check popular tokens for this network
+      await checkPopularTokens(addToken);
+
+      // Method 4: If on Sepolia, check common test tokens
+      if (network === "sepolia") {
+        await checkCommonSepoliaTokens(addToken);
+      }
+
+      // Method 5 (Last resort): Check local storage for previously seen tokens
+      checkLocalStorageTokens(addToken);
+
+      // Convert map back to array (excluding the native token which we handle separately)
+      const tokensList = Array.from(tokenMap.values()).filter(
+        (token) => !token.isNative
+      );
+
+      // Update wallet tokens but preserve the native token at the beginning
+      setWalletTokens((prev) => {
+        const nativeToken = prev.find((t) => t.isNative);
+        return nativeToken ? [nativeToken, ...tokensList] : tokensList;
+      });
+
+      // If a token is currently selected, refresh its info
+      if (tokenAddress && tokenAddress !== "NATIVE") {
+        await fetchTokenInfo(tokenAddress);
+      }
+    } catch (error) {
+      console.error("Error scanning for tokens:", error);
+    } finally {
+      setScanningTokens(false);
+    }
+  };
+
+  const fetchTokensFromEtherscan = async (
+    addToken: (token: TokenData) => void
+  ) => {
+    // Different API endpoints based on network
+    const apiKey = "K7JPT55R9Q5V3INJZXI7432KGHZ19878ST"; // Consider rotating keys or using environment variables
+    const apiDomain =
+      network === "mainnet" ? "api.etherscan.io" : "api-sepolia.etherscan.io";
+
+    const response = await fetch(
+      `https://${apiDomain}/api?module=account&action=tokenlist&address=${account}&apikey=${apiKey}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Etherscan API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // If Etherscan returns valid data
+    if (data.status === "1" && data.result && data.result.length > 0) {
+      await Promise.all(
+        data.result.map(async (token: any) => {
+          try {
+            // Convert token decimals to a number
+            const decimals = parseInt(token.tokenDecimal);
+
+            // Format the balance with the correct number of decimals
+            const formattedBalance = formatUnits(token.balance, decimals);
+
+            addToken({
+              address: token.contractAddress,
+              symbol: token.symbol,
+              name: token.tokenName,
+              decimals: decimals,
+              balance: formattedBalance,
+              logoURI: "/api/placeholder/32/32",
+            });
+          } catch (error) {
+            console.error(
+              `Error processing token ${token.contractAddress}:`,
+              error
+            );
+          }
+        })
+      );
+    } else {
+      throw new Error("Etherscan returned no tokens or invalid data");
+    }
+  };
+
+  // Method 3: Check popular tokens for the current network
+  const checkPopularTokens = async (addToken: (token: TokenData) => void) => {
+    if (!connected || !account) return;
+
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+
+      // Get the tokens list for the current network
+      const popularTokens =
+        POPULAR_TOKENS[network as keyof typeof POPULAR_TOKENS] || [];
+
+      // Check each token in the popular list that isn't native
+      await Promise.all(
+        popularTokens
+          .filter((token) => token.address !== "NATIVE")
+          .map(async (token) => {
+            try {
+              const contract = new Contract(token.address, ERC20_ABI, provider);
+              const balance = await contract.balanceOf(account);
+
+              // Add all tokens, even with zero balance
+              const formattedBalance = formatUnits(balance, token.decimals);
+
+              addToken({
+                address: token.address,
+                symbol: token.symbol,
+                name: token.name,
+                decimals: token.decimals,
+                balance: formattedBalance,
+                logoURI: token.logoURI || "/api/placeholder/32/32",
+              });
+            } catch (error) {
+              console.error(
+                `Error checking popular token ${token.address}:`,
+                error
+              );
+            }
+          })
+      );
+    } catch (error) {
+      console.error("Error checking popular tokens:", error);
+    }
+  };
+
+  // Method 4: Enhanced Sepolia token detection with more tokens
+  const checkCommonSepoliaTokens = async (
+    addToken: (token: TokenData) => void
+  ) => {
+    if (!connected || !account) return;
+
+    // Expanded list of common token addresses on Sepolia
+    const EXPANDED_SEPOLIA_TOKENS = [
+      ...COMMON_SEPOLIA_TOKENS,
+      // Add more known Sepolia token addresses here
+      "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", // Test UNI
+      "0x3587b2F7E0E2D6166d6C14230C0CBB6d981B9098", // Test LINK
+      "0x779877A7B0D9E8603169DdbD7836e478b4624789", // Test LINK (official)
+      "0xf4Ca1a280ebcedda9b860d85872807a8b7ba0296", // Test USDT
+      "0x5fd7ffd3825358C6449e5adCec9D18C5e0fb5597", // Test WBTC
+      // Feel free to add more addresses
+    ];
+
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+
+      // Check each token in our expanded list
+      await Promise.all(
+        EXPANDED_SEPOLIA_TOKENS.map(async (address) => {
+          try {
+            const contract = new Contract(address, ERC20_ABI, provider);
+
+            // Get token details and balance
+            const [name, symbol, decimals, balance] = await Promise.all([
+              contract.name().catch(() => "Unknown Token"),
+              contract.symbol().catch(() => "???"),
+              contract.decimals().catch(() => 18),
+              contract.balanceOf(account),
+            ]);
+
+            const formattedBalance = formatUnits(balance, decimals);
+
+            addToken({
+              address,
+              symbol,
+              name,
+              decimals,
+              balance: formattedBalance,
+              logoURI: "/api/placeholder/32/32",
+            });
+          } catch (error) {
+            console.error(`Error checking Sepolia token ${address}:`, error);
+          }
+        })
+      );
+    } catch (error) {
+      console.error("Error checking common Sepolia tokens:", error);
+    }
+  };
+
+  // Method 5: Check local storage for previously seen tokens
+  const checkLocalStorageTokens = (addToken: (token: TokenData) => void) => {
+    try {
+      // Get previously seen tokens from localStorage
+      const storageKey = `seen_tokens_${account}_${network}`;
+      const savedTokens = localStorage.getItem(storageKey);
+
+      if (savedTokens) {
+        const tokens = JSON.parse(savedTokens) as TokenData[];
+        tokens.forEach((token) => {
+          if (token && token.address && !token.isNative) {
+            addToken(token);
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error checking localStorage tokens:", error);
+    }
+  };
+
+  // Save seen tokens to localStorage when they are found
+  const saveSeenTokensToStorage = (tokens: TokenData[]) => {
+    if (!account || !network) return;
+
+    try {
+      const storageKey = `seen_tokens_${account}_${network}`;
+      localStorage.setItem(storageKey, JSON.stringify(tokens));
+    } catch (error) {
+      console.error("Error saving tokens to localStorage:", error);
+    }
+  };
+
+  // Call this when updating walletTokens to save the tokens
+  useEffect(() => {
+    if (walletTokens.length > 0) {
+      saveSeenTokensToStorage(walletTokens);
+    }
+  }, [walletTokens, account, network]);
+
   const switchNetwork = async (networkId: string) => {
     if (!window.ethereum) return;
-
     const targetNetwork = NETWORKS[networkId as keyof typeof NETWORKS];
-
     try {
       setLoading(true);
       await window.ethereum.request({
@@ -243,8 +639,14 @@ export default function EnhancedTradePage() {
         params: [{ chainId: "0x" + targetNetwork.chainId.toString(16) }],
       });
       setNetwork(networkId);
+      setTokenAddress("");
+      setTokenInfo(null);
+      setWalletTokens([]);
+      setTimeout(() => {
+        fetchNativeBalance();
+        scanForTokens();
+      }, 1000);
     } catch (switchError: any) {
-      // This error code indicates that the chain has not been added to MetaMask
       if (switchError.code === 4902) {
         try {
           await window.ethereum.request({
@@ -255,10 +657,18 @@ export default function EnhancedTradePage() {
                 chainName: targetNetwork.name,
                 rpcUrls: [targetNetwork.rpcUrl],
                 blockExplorerUrls: [targetNetwork.blockExplorer],
+                nativeCurrency: targetNetwork.nativeCurrency,
               },
             ],
           });
           setNetwork(networkId);
+          setTokenAddress("");
+          setTokenInfo(null);
+          setWalletTokens([]);
+          setTimeout(() => {
+            fetchNativeBalance();
+            scanForTokens();
+          }, 1000);
         } catch (addError) {
           console.error("Failed to add network:", addError);
         }
@@ -269,26 +679,24 @@ export default function EnhancedTradePage() {
     }
   };
 
-  // Fetch token information
-  const fetchTokenInfo = async () => {
-    if (!isAddress(tokenAddress) || !connected) return;
-
+  const fetchTokenInfo = async (address: string) => {
+    if (!isAddress(address) || !connected) return;
     try {
       const provider = new BrowserProvider(window.ethereum);
-      const contract = new Contract(tokenAddress, ERC20_ABI, provider);
-
+      const contract = new Contract(address, ERC20_ABI, provider);
       const [name, symbol, decimalsValue, balance] = await Promise.all([
         contract.name(),
         contract.symbol(),
         contract.decimals(),
         contract.balanceOf(account),
       ]);
-
       setTokenInfo({
+        address,
         name,
         symbol,
         decimals: decimalsValue,
         balance: formatUnits(balance, decimalsValue),
+        logoURI: "/api/placeholder/32/32",
       });
     } catch (error) {
       console.error("Error fetching token info:", error);
@@ -296,117 +704,99 @@ export default function EnhancedTradePage() {
     }
   };
 
-  // Handle token selection from popular tokens
-  const handleSelectToken = (address: string) => {
-    setTokenAddress(address);
+  const handleSelectToken = (token: TokenData) => {
+    setTokenAddress(token.address);
+    setTokenInfo(token);
+    setShowTokenSelector(false);
   };
 
-  // Handle sending tokens
   const handleSend = async () => {
     if (
       !window.ethereum ||
-      !isAddress(tokenAddress) ||
+      (!isAddress(tokenAddress) && tokenAddress !== "NATIVE") ||
       !isAddress(recipient) ||
       !amount
     ) {
       alert("Please fill all fields with valid values");
       return;
     }
-
     setLoading(true);
     setTxStatus(null);
     setTxHash("");
-
     try {
-      // Ensure user is connected
       if (!connected) {
         await connectWallet();
       }
-
-      // Check and switch network if needed
       const provider = new BrowserProvider(window.ethereum);
       const currentNetwork = await provider.getNetwork();
       const currentChainId = Number(currentNetwork.chainId);
       const targetChainId = NETWORKS[network as keyof typeof NETWORKS].chainId;
-
       if (currentChainId !== targetChainId) {
         await switchNetwork(network);
       }
-
-      // Get signer
       const signer = await provider.getSigner();
-
-      // Create contract instance
-      const contract = new Contract(tokenAddress, ERC20_ABI, signer);
-
-      // Get token decimals if not already fetched
-      const decimalsValue = tokenInfo
-        ? tokenInfo.decimals
-        : await contract.decimals();
-
-      // Parse amount with appropriate decimals
-      const parsedAmount = parseUnits(amount, decimalsValue);
-
-      // Send transaction
-      const txResponse = await contract.transfer(recipient, parsedAmount);
-
+      let txResponse;
+      if (tokenAddress === "NATIVE") {
+        const parsedAmount = parseUnits(amount, 18);
+        txResponse = await signer.sendTransaction({
+          to: recipient,
+          value: parsedAmount,
+        });
+      } else {
+        const contract = new Contract(tokenAddress, ERC20_ABI, signer);
+        const decimalsValue = tokenInfo
+          ? tokenInfo.decimals
+          : await contract.decimals();
+        const parsedAmount = parseUnits(amount, decimalsValue);
+        txResponse = await contract.transfer(recipient, parsedAmount);
+      }
       setTxHash(txResponse.hash);
       setTxStatus("pending");
-
-      // Add to transaction history
-      const newTx = {
+      const newTx: Transaction = {
         hash: txResponse.hash,
         to: recipient,
         amount,
         symbol: tokenInfo?.symbol || "Unknown",
-        status: "pending" as const,
+        status: "pending",
         timestamp: Date.now(),
+        tokenAddress: tokenAddress,
       };
-
-      setTransactionHistory((prev) => [newTx, ...prev.slice(0, 9)]);
-
-      // Wait for transaction confirmation
-      await txResponse.wait(); // Fixed: Removed the unused txReceipt variable
-
-      // Update transaction status
+      setTransactionHistory((prev) => [newTx, ...prev.slice(0, 19)]);
+      await txResponse.wait();
       setTxStatus("success");
       setTransactionHistory((prev) =>
         prev.map((tx) =>
-          tx.hash === txResponse.hash
-            ? { ...tx, status: "success" as const }
-            : tx
+          tx.hash === txResponse.hash ? { ...tx, status: "success" } : tx
         )
       );
-
-      // Refresh token balance
-      fetchTokenInfo();
+      if (tokenAddress === "NATIVE") {
+        fetchNativeBalance();
+      } else {
+        fetchTokenInfo(tokenAddress);
+      }
+      scanForTokens();
+      setAmount("");
     } catch (error: any) {
       console.error("Transaction failed:", error);
       setTxStatus("error");
-
-      // Update transaction in history if it exists
-      if (txHash) {
-        setTransactionHistory((prev) =>
-          prev.map((tx) =>
-            tx.hash === txHash ? { ...tx, status: "error" as const } : tx
-          )
-        );
-      }
-
       alert("Transaction failed: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Get transaction status component
+  const filteredTokens = walletTokens.filter(
+    (token) =>
+      token.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      token.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      token.address.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const getTxStatusComponent = () => {
     if (!txStatus) return null;
-
     const blockExplorer =
       NETWORKS[network as keyof typeof NETWORKS].blockExplorer;
     const txUrl = `${blockExplorer}/tx/${txHash}`;
-
     switch (txStatus) {
       case "pending":
         return (
@@ -468,134 +858,188 @@ export default function EnhancedTradePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
+        {/* Header */}
         <header className="mb-8 flex flex-col md:flex-row justify-between items-center">
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 to-purple-600">
-            TokenSwift
-          </h1>
-
-          <div className="mt-4 md:mt-0">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+              TS
+            </div>
+            <h1 className="text-3xl font-bold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-600">
+              TokenSwift
+            </h1>
+          </div>
+          <div className="mt-4 md:mt-0 flex items-center gap-3">
+            <Select
+              value={network}
+              onValueChange={(value) => switchNetwork(value)}
+              disabled={!connected || loading}
+            >
+              <SelectTrigger className="w-40 bg-white border-gray-200 focus:ring-purple-500 shadow-sm">
+                <SelectValue placeholder="Select Network" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mainnet">Ethereum Mainnet</SelectItem>
+                <SelectItem value="sepolia">Sepolia Testnet</SelectItem>
+              </SelectContent>
+            </Select>
+            {/* Button to Connect/Disconnect Wallet */}
             {connected ? (
-              <div className="flex items-center space-x-2 bg-white rounded-lg shadow px-4 py-2 border border-gray-200">
-                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">
+              <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm px-4 py-2 border border-gray-200">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-sm font-medium">
                   {account.substring(0, 6)}...
                   {account.substring(account.length - 4)}
                 </span>
+                <Button
+                  onClick={disconnectWallet}
+                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md flex items-center gap-2"
+                >
+                  <LogOut className="h-2 w-2" />
+                </Button>
               </div>
             ) : (
               <Button
                 onClick={connectWallet}
                 disabled={loading}
-                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md flex items-center gap-2"
               >
-                {loading ? "Connecting..." : "Connect Wallet"}
+                <Wallet className="h-5 w-5" />
+                <span className="hidden sm:inline">Connect Wallet</span>
               </Button>
             )}
           </div>
         </header>
 
+        {connected && (
+          <div className="mb-6">
+            <Card className="border-none shadow-md bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm text-blue-100 mb-1">
+                      Account Balance
+                    </p>
+                    <h2 className="text-2xl font-bold">
+                      {parseFloat(ethBalance).toFixed(4)} ETH
+                    </h2>
+                    <p className="text-sm text-blue-100 mt-1">
+                      {NETWORKS[network as keyof typeof NETWORKS].name}
+                    </p>
+                  </div>
+                  <div className="mt-4 md:mt-0 flex flex-col md:flex-row gap-3">
+                    <Button
+                      onClick={() => scanForTokens()}
+                      variant="outline"
+                      className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Refresh Tokens
+                    </Button>
+                    <a
+                      href={`${
+                        NETWORKS[network as keyof typeof NETWORKS].blockExplorer
+                      }/address/${account}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="outline"
+                        className="bg-white/10 hover:bg-white/20 text-white border-white/20 w-full"
+                      >
+                        View on Explorer
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Main Content */}
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            <Card className="border-gray-200 shadow-md">
+            <Card className="border-none shadow-md bg-white">
               <CardHeader className="border-b border-gray-100">
-                <CardTitle className="text-xl text-gray-800">
-                  Trade Tokens
+                <CardTitle className="text-xl font-bold text-gray-800">
+                  Send Tokens
                 </CardTitle>
                 <CardDescription>
-                  Send tokens to any address on{" "}
-                  {network === "mainnet"
-                    ? "Ethereum Mainnet"
-                    : "Sepolia Testnet"}
+                  Transfer your tokens to any Ethereum address
                 </CardDescription>
               </CardHeader>
-
               <CardContent className="pt-6">
                 <Tabs defaultValue="transfer" className="w-full">
-                  <TabsList className="grid grid-cols-2 mb-4">
-                    <TabsTrigger value="transfer">Transfer</TabsTrigger>
-                    <TabsTrigger value="history">History</TabsTrigger>
+                  <TabsList className="grid grid-cols-2 mb-4 bg-gray-100">
+                    <TabsTrigger
+                      value="transfer"
+                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                    >
+                      Transfer
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="history"
+                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                    >
+                      Transaction History
+                    </TabsTrigger>
                   </TabsList>
-
+                  {/* Transfer Tab */}
                   <TabsContent value="transfer" className="space-y-6">
-                    <div>
-                      <Label htmlFor="network" className="mb-2 block text-sm">
-                        Network
-                      </Label>
-                      <Select
-                        value={network}
-                        onValueChange={(value) => {
-                          setNetwork(value);
-                          setTokenAddress("");
-                          setTokenInfo(null);
-                        }}
+                    <div className="flex justify-between items-center">
+                      <Label
+                        htmlFor="tokenAddress"
+                        className="text-sm font-medium"
                       >
-                        <SelectTrigger className="border-gray-300 focus:ring-cyan-500">
-                          <SelectValue placeholder="Select Network" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mainnet">
-                            Ethereum Mainnet
-                          </SelectItem>
-                          <SelectItem value="sepolia">
-                            Sepolia Testnet
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                        Select Token
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => scanForTokens()}
+                        disabled={scanningTokens}
+                        className="h-8 px-2 text-xs text-blue-600"
+                      >
+                        {scanningTokens ? (
+                          <Loader2 className="mr-1 animate-spin h-4 w-4" />
+                        ) : (
+                          <Search className="mr-1 h-4 w-4" />
+                        )}
+                        Scan Tokens
+                      </Button>
                     </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <Label htmlFor="tokenAddress" className="text-sm">
-                          Token Address
-                        </Label>
-                        <span className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
-                          Popular Tokens
-                        </span>
-                      </div>
-
-                      <div className="flex mb-2 gap-2 overflow-x-auto pb-2">
-                        {POPULAR_TOKENS[
-                          network as keyof typeof POPULAR_TOKENS
-                        ].map((token) => (
-                          <Button
-                            key={token.address}
-                            variant="outline"
-                            size="sm"
-                            className="border-gray-300 hover:bg-gray-100 text-xs"
-                            onClick={() => handleSelectToken(token.address)}
-                          >
-                            {token.symbol}
-                          </Button>
-                        ))}
-                      </div>
-
-                      <Input
-                        id="tokenAddress"
-                        value={tokenAddress}
-                        onChange={(e) => setTokenAddress(e.target.value)}
-                        placeholder="0x..."
-                        className="border-gray-300 focus:ring-cyan-500"
-                      />
-
-                      {tokenInfo && (
-                        <div className="mt-2 p-2 rounded bg-gray-50 border border-gray-200 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">
-                              {tokenInfo.name} ({tokenInfo.symbol})
-                            </span>
-                            <span className="text-gray-700">
-                              Balance:{" "}
-                              {parseFloat(tokenInfo.balance).toFixed(4)}
-                            </span>
-                          </div>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      {tokenInfo ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowTokenSelector(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <img
+                            src={tokenInfo.logoURI}
+                            alt={tokenInfo.symbol}
+                            className="w-5 h-5"
+                          />
+                          <span>{tokenInfo.symbol}</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowTokenSelector(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Search className="h-4 w-4" />
+                          <span>Select Token</span>
+                        </Button>
                       )}
                     </div>
-
-                    <div>
-                      <Label htmlFor="recipient" className="mb-2 block text-sm">
+                    <div className="grid gap-2">
+                      <Label
+                        htmlFor="recipient"
+                        className="text-sm font-medium"
+                      >
                         Recipient Address
                       </Label>
                       <Input
@@ -603,105 +1047,67 @@ export default function EnhancedTradePage() {
                         value={recipient}
                         onChange={(e) => setRecipient(e.target.value)}
                         placeholder="0x..."
-                        className="border-gray-300 focus:ring-cyan-500"
                       />
-                      <div className="text-xs mt-1 text-gray-500">
-                        {isAddress(recipient) ? (
-                          <span className="text-green-600">
-                            ✓ Valid address
-                          </span>
-                        ) : (
-                          <span>Enter a valid Ethereum address</span>
-                        )}
-                      </div>
                     </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <Label htmlFor="amount" className="text-sm">
-                          Amount
-                        </Label>
-                        {tokenInfo && (
-                          <button
-                            className="text-xs text-cyan-600 hover:text-cyan-700"
-                            onClick={() => setAmount(tokenInfo.balance)}
-                          >
-                            Max
-                          </button>
-                        )}
-                      </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="amount" className="text-sm font-medium">
+                        Amount
+                      </Label>
                       <Input
                         id="amount"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0.0"
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        className="border-gray-300 focus:ring-cyan-500"
                       />
                     </div>
-
                     <Button
                       onClick={handleSend}
-                      disabled={
-                        loading ||
-                        !connected ||
-                        !isAddress(tokenAddress) ||
-                        !isAddress(recipient) ||
-                        !amount
-                      }
-                      className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white"
+                      disabled={loading}
+                      className="w-full"
                     >
                       {loading ? (
                         <span className="flex items-center">
                           <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                          Processing...
+                          Sending...
                         </span>
                       ) : (
-                        <span className="flex items-center">
-                          Send Tokens
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </span>
+                        "Send Tokens"
                       )}
                     </Button>
-
                     {getTxStatusComponent()}
                   </TabsContent>
-
-                  <TabsContent value="history">
-                    {transactionHistory.length > 0 ? (
-                      <div className="space-y-4">
-                        {transactionHistory.map((tx) => (
-                          <div
-                            key={tx.hash}
-                            className="p-3 rounded-lg bg-white border border-gray-200 shadow-sm"
-                          >
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-sm font-medium text-gray-700">
-                                {tx.amount} {tx.symbol}
-                              </span>
-                              <span
-                                className={`text-xs px-2 py-1 rounded ${
-                                  tx.status === "success"
-                                    ? "bg-green-100 text-green-700"
-                                    : tx.status === "pending"
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-red-100 text-red-700"
-                                }`}
-                              >
-                                {tx.status.charAt(0).toUpperCase() +
-                                  tx.status.slice(1)}
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-500 mb-1">
-                              To: {tx.to.substring(0, 8)}...
-                              {tx.to.substring(tx.to.length - 8)}
-                            </div>
+                  {/* Transaction History Tab */}
+                  <TabsContent value="history" className="space-y-4">
+                    {transactionHistory.length === 0 ? (
+                      <p className="text-gray-500 text-sm">
+                        No transactions found.
+                      </p>
+                    ) : (
+                      transactionHistory.map((tx) => (
+                        <Card
+                          key={tx.hash}
+                          className="border border-gray-100 shadow-sm"
+                        >
+                          <CardContent className="p-3">
                             <div className="flex justify-between items-center">
-                              <div className="text-xs text-gray-500">
-                                {new Date(tx.timestamp).toLocaleString()}
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {tx.symbol}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(tx.timestamp).toLocaleString()}
+                                </p>
                               </div>
+                              <div>
+                                <p className="text-sm">
+                                  {!isNaN(parseFloat(tx.amount))
+                                    ? parseFloat(tx.amount).toFixed(4)
+                                    : "0.00"}{" "}
+                                  {tx.symbol}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-2">
                               <a
                                 href={`${
                                   NETWORKS[network as keyof typeof NETWORKS]
@@ -709,113 +1115,121 @@ export default function EnhancedTradePage() {
                                 }/tx/${tx.hash}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-purple-600 hover:text-purple-700"
+                                className="text-xs text-blue-600 hover:underline"
                               >
-                                View Transaction
+                                {tx.hash.substring(0, 10)}...
                               </a>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-400">
-                        <p>No transaction history available</p>
-                      </div>
+                            <div className="mt-1">
+                              <p
+                                className={`text-xs font-medium ${
+                                  tx.status === "success"
+                                    ? "text-green-600"
+                                    : tx.status === "error"
+                                    ? "text-red-600"
+                                    : "text-yellow-600"
+                                }`}
+                              >
+                                {tx.status.toUpperCase()}
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
                     )}
                   </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
           </div>
-
-          <div>
-            <Card className="border-gray-200 shadow-md h-full">
-              <CardHeader className="border-b border-gray-100">
-                <CardTitle className="text-xl text-gray-800">
-                  Network Info
+          {/* Right Column: Token List */}
+          <div className="space-y-4">
+            <Card className="border-none shadow-md bg-white">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold">
+                  Wallet Tokens
                 </CardTitle>
               </CardHeader>
-
-              <CardContent className="space-y-4 pt-6">
-                <div>
-                  <h3 className="text-md font-medium mb-2 text-gray-800">
-                    {network === "mainnet"
-                      ? "Ethereum Mainnet"
-                      : "Sepolia Testnet"}
-                  </h3>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p>
-                      Chain ID:{" "}
-                      {NETWORKS[network as keyof typeof NETWORKS].chainId}
-                    </p>
-                    <p>
-                      <a
-                        href={
-                          NETWORKS[network as keyof typeof NETWORKS]
-                            .blockExplorer
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-cyan-600 hover:text-cyan-700"
-                      >
-                        Block Explorer
-                      </a>
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-md font-medium mb-2 text-gray-800">
-                    Popular Tokens
-                  </h3>
-                  <div className="space-y-2">
-                    {POPULAR_TOKENS[network as keyof typeof POPULAR_TOKENS].map(
-                      (token) => (
-                        <div
-                          key={token.address}
-                          className="p-2 rounded bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200"
-                          onClick={() => handleSelectToken(token.address)}
-                        >
-                          <div className="font-medium text-gray-700">
-                            {token.symbol}
-                          </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {token.address}
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-auto pt-4">
-                  <h3 className="text-md font-medium mb-2 text-gray-800">
-                    Need Help?
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Make sure your wallet is connected and you're on the correct
-                    network.
-                  </p>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full border-gray-300 hover:bg-gray-100"
-                        >
-                          View Documentation
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Documentation coming soon</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
+              <CardContent className="space-y-2">
+                {walletTokens.length === 0 ? (
+                  <p className="text-sm text-gray-500">No tokens found.</p>
+                ) : (
+                  walletTokens.map((token) => (
+                    <div
+                      key={token.address}
+                      className="flex items-center gap-3 p-2 border-b border-gray-100"
+                    >
+                      <img
+                        src={token.logoURI}
+                        alt={token.symbol}
+                        className="w-6 h-6"
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{token.symbol}</p>
+                        <p className="text-xs text-gray-500">
+                          {token.balance && !isNaN(parseFloat(token.balance))
+                            ? parseFloat(token.balance).toFixed(4)
+                            : "0.00"}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* Token Selector Dialog */}
+        {showTokenSelector && (
+          <Dialog open={showTokenSelector} onOpenChange={setShowTokenSelector}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Select a Token</DialogTitle>
+                <DialogDescription>
+                  Search and select a token from your wallet.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4">
+                <Input
+                  placeholder="Search token..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="mb-4"
+                />
+                {filteredTokens.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No matching tokens found.
+                  </p>
+                ) : (
+                  filteredTokens.map((token) => (
+                    <div
+                      key={token.address}
+                      onClick={() => handleSelectToken(token)}
+                      className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                    >
+                      <img
+                        src={token.logoURI}
+                        alt={token.symbol}
+                        className="w-6 h-6"
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{token.symbol}</p>
+                        <p className="text-xs text-gray-500">{token.name}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <Button
+                onClick={() => setShowTokenSelector(false)}
+                className="mt-4 w-full"
+              >
+                Close
+              </Button>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
