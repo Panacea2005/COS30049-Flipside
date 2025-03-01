@@ -85,35 +85,21 @@ const POPULAR_TOKENS = {
       address: "NATIVE",
       decimals: 18,
       name: "Ethereum",
-      logoURI: "/api/placeholder/32/32",
+      logoURI: "/eth.svg",
     },
     {
       symbol: "USDC",
       address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       decimals: 6,
       name: "USD Coin",
-      logoURI: "/api/placeholder/32/32",
+      logoURI: "usdc.svg",
     },
     {
       symbol: "USDT",
       address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
       decimals: 6,
       name: "Tether USD",
-      logoURI: "/api/placeholder/32/32",
-    },
-    {
-      symbol: "DAI",
-      address: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
-      decimals: 18,
-      name: "Dai Stablecoin",
-      logoURI: "/api/placeholder/32/32",
-    },
-    {
-      symbol: "WETH",
-      address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-      decimals: 18,
-      name: "Wrapped Ether",
-      logoURI: "/api/placeholder/32/32",
+      logoURI: "usdt.svg",
     },
   ],
   sepolia: [
@@ -122,21 +108,35 @@ const POPULAR_TOKENS = {
       address: "NATIVE",
       decimals: 18,
       name: "Sepolia Ether",
-      logoURI: "/api/placeholder/32/32",
+      logoURI: "/eth.svg",
     },
     {
       symbol: "TEST USDC",
       address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
       decimals: 6,
       name: "Test USD Coin",
-      logoURI: "/api/placeholder/32/32",
+      logoURI: "/usdc.svg",
     },
     {
       symbol: "TEST USDT",
-      address: "0xf4Ca1a280ebcedda9b860d85872807a8b7ba0296",
+      address: "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06",
       decimals: 6,
       name: "Test Tether USD",
-      logoURI: "/api/placeholder/32/32",
+      logoURI: "/usdt.svg",
+    },
+    {
+      symbol: "TEST UNI",
+      address: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+      decimals: 6,
+      name: "Test Uniswap",
+      logoURI: "/uni.svg",
+    },
+    {
+      symbol: "TEST LINK",
+      address: "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+      decimals: 18,
+      name: "Test Chainlink",
+      logoURI: "/link.svg",
     },
   ],
 };
@@ -145,6 +145,16 @@ const POPULAR_TOKENS = {
 const COMMON_SEPOLIA_TOKENS = [
   "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // TEST USDC
 ];
+
+const TOKEN_ICONS: { [key: string]: string } = {
+  NATIVE: "/eth.svg",
+  "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": "/usdc.svg", // Mainnet USDC
+  "0xdAC17F958D2ee523a2206206994597C13D831ec7": "/usdt.svg", // Mainnet USDT
+  "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238": "/usdc.svg", // Test USDC on Sepolia
+  "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06": "/usdt.svg", // Test USDT on Sepolia
+  "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984": "/uni.svg", // Test UNI
+  "0x779877A7B0D9E8603169DdbD7836e478b4624789": "/link.svg", // Test LINK
+};
 
 interface TokenData {
   address: string;
@@ -269,6 +279,11 @@ export default function EnhancedTradePage() {
     }
   };
 
+  // Function to get token icon
+  const getTokenIcon = (address: string) => {
+    return TOKEN_ICONS[address] || "/eth.svg";
+  };
+
   const handleAccountsChanged = (accounts: string[]) => {
     if (accounts.length === 0) {
       setConnected(false);
@@ -338,7 +353,7 @@ export default function EnhancedTradePage() {
         decimals:
           NETWORKS[network as keyof typeof NETWORKS].nativeCurrency.decimals,
         balance: formattedBalance,
-        logoURI: "/api/placeholder/32/32",
+        logoURI: "/eth.svg",
         isNative: true,
       };
       setWalletTokens((prev) => {
@@ -367,7 +382,7 @@ export default function EnhancedTradePage() {
         name: nativeCurrency.name,
         decimals: nativeCurrency.decimals,
         balance: ethBalance,
-        logoURI: "/api/placeholder/32/32",
+        logoURI: "/eth.svg",
         isNative: true,
       });
     } catch (error) {
@@ -476,7 +491,7 @@ export default function EnhancedTradePage() {
               name: token.tokenName,
               decimals: decimals,
               balance: formattedBalance,
-              logoURI: "/api/placeholder/32/32",
+              logoURI: getTokenIcon(token.contractAddress),
             });
           } catch (error) {
             console.error(
@@ -520,7 +535,7 @@ export default function EnhancedTradePage() {
                 name: token.name,
                 decimals: token.decimals,
                 balance: formattedBalance,
-                logoURI: token.logoURI || "/api/placeholder/32/32",
+                logoURI: token.logoURI || "/eth.svg",
               });
             } catch (error) {
               console.error(
@@ -546,11 +561,8 @@ export default function EnhancedTradePage() {
       ...COMMON_SEPOLIA_TOKENS,
       // Add more known Sepolia token addresses here
       "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", // Test UNI
-      "0x3587b2F7E0E2D6166d6C14230C0CBB6d981B9098", // Test LINK
       "0x779877A7B0D9E8603169DdbD7836e478b4624789", // Test LINK (official)
-      "0xf4Ca1a280ebcedda9b860d85872807a8b7ba0296", // Test USDT
-      "0x5fd7ffd3825358C6449e5adCec9D18C5e0fb5597", // Test WBTC
-      // Feel free to add more addresses
+      "0x7169D38820dfd117C3FA1f22a697dBA58d90BA06", // Test USDT
     ];
 
     try {
@@ -578,7 +590,7 @@ export default function EnhancedTradePage() {
               name,
               decimals,
               balance: formattedBalance,
-              logoURI: "/api/placeholder/32/32",
+              logoURI: "/eth.svg",
             });
           } catch (error) {
             console.error(`Error checking Sepolia token ${address}:`, error);
@@ -615,19 +627,51 @@ export default function EnhancedTradePage() {
     if (!account || !network) return;
 
     try {
+      // Convert the BigInt balance to string
+      const tokensToSave = tokens.map((token) => ({
+        ...token,
+        balance: token.balance.toString(), // Convert BigInt to string
+      }));
+
       const storageKey = `seen_tokens_${account}_${network}`;
-      localStorage.setItem(storageKey, JSON.stringify(tokens));
+      localStorage.setItem(storageKey, JSON.stringify(tokensToSave));
     } catch (error) {
       console.error("Error saving tokens to localStorage:", error);
     }
   };
 
-  // Call this when updating walletTokens to save the tokens
+  // When loading tokens, convert string back to BigInt
+  const loadTokensFromStorage = () => {
+    try {
+      const storageKey = `seen_tokens_${account}_${network}`;
+      const savedTokens = localStorage.getItem(storageKey);
+
+      if (savedTokens) {
+        const tokens = JSON.parse(savedTokens) as TokenData[];
+        const tokensWithBigInt = tokens.map((token) => ({
+          ...token,
+          balance: token.balance.toString(), // Convert BigInt to string
+        }));
+        setWalletTokens(tokensWithBigInt);
+      }
+    } catch (error) {
+      console.error("Error loading tokens from localStorage:", error);
+    }
+  };
+
+  // Call this function to save tokens to storage
   useEffect(() => {
     if (walletTokens.length > 0) {
       saveSeenTokensToStorage(walletTokens);
     }
   }, [walletTokens, account, network]);
+
+  // Call this function to load tokens from storage when the page loads
+  useEffect(() => {
+    if (account && network) {
+      loadTokensFromStorage();
+    }
+  }, [account, network]);
 
   const switchNetwork = async (networkId: string) => {
     if (!window.ethereum) return;
@@ -876,36 +920,45 @@ export default function EnhancedTradePage() {
               onValueChange={(value) => switchNetwork(value)}
               disabled={!connected || loading}
             >
-              <SelectTrigger className="w-40 bg-white border-gray-200 focus:ring-purple-500 shadow-sm">
+              <SelectTrigger className="w-40 bg-white/50 backdrop-blur-sm border border-gray-200 hover:border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 shadow-sm transition-all">
                 <SelectValue placeholder="Select Network" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mainnet">Ethereum Mainnet</SelectItem>
-                <SelectItem value="sepolia">Sepolia Testnet</SelectItem>
+              <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg">
+                <SelectItem value="mainnet" className="hover:bg-purple-50">
+                  Ethereum Mainnet
+                </SelectItem>
+                <SelectItem value="sepolia" className="hover:bg-purple-50">
+                  Sepolia Testnet
+                </SelectItem>
               </SelectContent>
             </Select>
-            {/* Button to Connect/Disconnect Wallet */}
+
             {connected ? (
-              <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm px-4 py-2 border border-gray-200">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-sm font-medium">
-                  {account.substring(0, 6)}...
-                  {account.substring(account.length - 4)}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="bg-white rounded-lg shadow-sm px-4 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span className="text-sm font-medium">
+                      {account.substring(0, 6)}...
+                      {account.substring(account.length - 4)}
+                    </span>
+                  </div>
+                </div>
                 <Button
                   onClick={disconnectWallet}
-                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md flex items-center gap-2"
+                  className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
                 >
-                  <LogOut className="h-2 w-2" />
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Disconnect</span>
                 </Button>
               </div>
             ) : (
               <Button
                 onClick={connectWallet}
                 disabled={loading}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md flex items-center gap-2"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
               >
-                <Wallet className="h-5 w-5" />
+                <Wallet className="h-4 w-4" />
                 <span className="hidden sm:inline">Connect Wallet</span>
               </Button>
             )}

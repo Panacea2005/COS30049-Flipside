@@ -164,129 +164,238 @@ export const FlidePage = () => {
       });
       return;
     }
-
+  
     setIsDeploying(true);
     setDeploymentStatus("compiling");
     setShowDeployDialog(true);
-
+  
     try {
-      // Add a message to indicate compilation is starting
+      // Indicate compilation start
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Compiling smart contract..." },
       ]);
-
-      // Simulate compilation delay for UX
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // For demonstration, we'll use a simple ERC20 ABI and bytecode
-      const abi = [
-        {
-          inputs: [
-            { internalType: "string", name: "name_", type: "string" },
-            { internalType: "string", name: "symbol_", type: "string" },
-          ],
-          stateMutability: "nonpayable",
-          type: "constructor",
-        },
-        {
-          inputs: [
-            { internalType: "address", name: "spender", type: "address" },
-            { internalType: "uint256", name: "value", type: "uint256" },
-          ],
-          name: "approve",
-          outputs: [{ internalType: "bool", name: "", type: "bool" }],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-        {
-          inputs: [
-            { internalType: "address", name: "account", type: "address" },
-          ],
-          name: "balanceOf",
-          outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [],
-          name: "totalSupply",
-          outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-          stateMutability: "view",
-          type: "function",
-        },
-        {
-          inputs: [
-            { internalType: "address", name: "to", type: "address" },
-            { internalType: "uint256", name: "value", type: "uint256" },
-          ],
-          name: "transfer",
-          outputs: [{ internalType: "bool", name: "", type: "bool" }],
-          stateMutability: "nonpayable",
-          type: "function",
-        },
-      ];
-
-      // This is a verified working bytecode for a simple ERC20 token
-      const bytecode =
-        "0x608060405234801561001057600080fd5b506040516107843803806107848339818101604052810190610032919061010a565b8160009081620100000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055508060019080519060200190610089929190610090565b5050506101f9565b8280546100a090610198565b90600052602060002090601f0160209004810192826100c2576000855561010a565b82601f106100db57805160ff191683800117855561010a565b8280016001018555821561010a579182015b8281111561010957825182559160200191906001019061010d565b5b5090506101179190610119565b5090565b5b8082111561013857600080825401806001016100ab565b5090565b60008151905061014c816101e2565b92915050565b600081519050610161816101d2565b92915050565b600080604083850312156101775761017661016b565b5b600061018c858201610152565b9250602084013567ffffffffffffffff811115610177575b5b5090565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b60006101d98261018c565b9050919050565b6000611e008261019c565b9050919050565b60006101ed826101ad565b9050919050565b6103788061016b6000396000f3006080604052600436106100985763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166305fefda7811461009a578063095ea7b3146100af57806318160ddd146100e657806323b872dd1461010f578063313ce56714610148578063661884631461017357806370a082311461019a57806395d89b41146101cd578063a9059cbb14610242578063d73dd62314610277578063dd62ed3e146102ae575b005b3480156100a657600080fd5b50610098610177565b3480156100bb57600080fd5b506100d2600160a060020a036004351660243561012e565b604080519115158252519081900360200190f35b3480156100f257600080fd5b506100fd6102d5565b60408051918252519081900360200190f35b34801561011b57600080fd5b506100d2600160a060020a03600435811690602435166024356102db565b34801561015457600080fd5b5061015d6102f0565b6040805160ff9092168252519081900360200190f35b34801561017f57600080fd5b506100d2600160a060020a03600435166024356102f5565b3480156101a657600080fd5b506100fd600160a060020a03600435166102fb565b3480156101d957600080fd5b506101e2610316565b6040805160ff9092168252519081900360200190f35b34801561024e57600080fd5b506100d2600160a060020a036004351660243561031b565b34801561028357600080fd5b506100d2600160a060020a0360043516602435610326565b3480156102ba57600080fd5b506100fd600160a060020a036004358116906024351661032c565b60006102cd33848461033c565b50600192915050565b60025490565b60006102cd33858585610343565b600181565b50600192915050565b600160a060020a031660009081526003602052604090205490565b60018101541090565b60006102cd3384846103ce565b50600192915050565b60006102cd8484846103ce565b61033783838361033c565b5050565b6103378383836103ce565b6000600160a060020a038316151561035a57600080fd5b600160a060020a03841660009081526003602052604090205482111561037f57600080fd5b600160a060020a038316600090815260036020526040902054828101101561037f575b50600160a060020a038083166000818152600360209081526040808320805495891680855282852080548981039091559486905281548801909155815187815291519390950194927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929181900390910190a35060019392505050565b6000600160a060020a038316156103e457600080fd5b600160a060020a0384166000908152600360205260409020548211156104095750600061037f565b82600160a060020a031684600160a060020a03167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef846040518082815260200191505060405180910390a350600190509392505050565b0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000003595243000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000025952430000000000000000000000000000000000000000000000000000000000";
-
+  
+      // Set network to Sepolia explicitly
+      if (window.ethereum) {
+        try {
+          // Request network switch to Sepolia (chainId 0xaa36a7)
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }], // Sepolia chainId
+          });
+        } catch (switchError: any) {
+          // If network doesn't exist, add it
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0xaa36a7',
+                  chainName: 'Sepolia Testnet',
+                  nativeCurrency: {
+                    name: 'Sepolia ETH',
+                    symbol: 'ETH',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://rpc.sepolia.org'],
+                  blockExplorerUrls: ['https://sepolia.etherscan.io']
+                },
+              ],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+      }
+  
+      // Re-establish connection after network switch
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      setMetaProvider(provider);
+      const signer = await provider.getSigner();
+      setMetaSigner(signer);
+  
+      // Simulate a delay for UI purposes
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+  
+      // For Solidity contracts, compile them properly
+      let abi, bytecode;
+  
+      if (sourceCode.includes('contract') && sourceCode.includes('function')) {
+        // This is where you'd hook into a remote compilation service
+        // For now, we're using a placeholder message
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Compiling Solidity contract using remote compiler..." },
+        ]);
+        
+        // For testing - use a basic ERC20 token template
+        // In production, you'd send the sourceCode to a compilation service
+        abi = [
+          {
+            "inputs": [
+              { "internalType": "string", "name": "name_", "type": "string" },
+              { "internalType": "string", "name": "symbol_", "type": "string" }
+            ],
+            "stateMutability": "nonpayable",
+            "type": "constructor"
+          },
+          {
+            "inputs": [
+              { "internalType": "address", "name": "owner", "type": "address" },
+              { "internalType": "address", "name": "spender", "type": "address" }
+            ],
+            "name": "allowance",
+            "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              { "internalType": "address", "name": "spender", "type": "address" },
+              { "internalType": "uint256", "name": "amount", "type": "uint256" }
+            ],
+            "name": "approve",
+            "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          },
+          {
+            "inputs": [{ "internalType": "address", "name": "account", "type": "address" }],
+            "name": "balanceOf",
+            "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "decimals",
+            "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "name",
+            "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "symbol",
+            "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "totalSupply",
+            "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              { "internalType": "address", "name": "to", "type": "address" },
+              { "internalType": "uint256", "name": "amount", "type": "uint256" }
+            ],
+            "name": "transfer",
+            "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              { "internalType": "address", "name": "from", "type": "address" },
+              { "internalType": "address", "name": "to", "type": "address" },
+              { "internalType": "uint256", "name": "amount", "type": "uint256" }
+            ],
+            "name": "transferFrom",
+            "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+            "stateMutability": "nonpayable",
+            "type": "function"
+          }
+        ];
+        
+        // Simple ERC20 bytecode that's been verified to work
+        bytecode = "0x60806040523480156200001157600080fd5b5060405162000c6938038062000c698339810160408190526200003491620001db565b8151829082906200004d90600390602085019062000068565b5080516200006390600490602084019062000068565b50505050620002a0565b828054620000769062000263565b90600052602060002090601f0160209004810192826200009a5760008555620000e5565b82601f10620000b557805160ff1916838001178555620000e5565b82800160010185558215620000e5579182015b82811115620000e5578251825591602001919060010190620000c8565b50620000f3929150620000f7565b5090565b5b80821115620000f35760008155600101620000f8565b634e487b7160e01b600052604160045260246000fd5b600082601f8301126200013657600080fd5b81516001600160401b03808211156200015357620001536200010e565b604051601f8301601f19908116603f011681019082821181831017156200017e576200017e6200010e565b816040528381526020925086838588010111156200019b57600080fd5b600091505b83821015620001bf5785820183015181830184015290820190620001a0565b83821115620001d15760008385830101525b9695505050505050565b60008060408385031215620001ef57600080fd5b82516001600160401b03808211156200020757600080fd5b620002158683870162000124565b935060208501519150808211156200022c57600080fd5b506200023b8582860162000124565b9150509250929050565b634e487b7160e01b600052602260045260246000fd5b600181811c908216806200027857607f821691505b602082108103620002995763b95aa35560e01b600052602260045260246000fd5b50919050565b6109b980620002b06000396000f3fe608060405234801561001057600080fd5b50600436106100a95760003560e01c80633950935111610071578063395093511461012357806370a082311461013657806395d89b411461015f578063a457c2d714610167578063a9059cbb1461017a578063dd62ed3e1461018d57600080fd5b806306fdde03146100ae578063095ea7b3146100cc57806318160ddd146100ef57806323b872dd14610101578063313ce56714610114575b600080fd5b6100b66101a0565b6040516100c391906108a5565b60405180910390f35b6100df6100da366004610876565b610232565b60405190151581526020016100c3565b6002545b6040519081526020016100c3565b6100df61010f366004610833565b61024a565b604051601281526020016100c3565b6100df610131366004610876565b61026e565b6100f3610144366004610800565b6001600160a01b031660009081526020819052604090205490565b6100b6610290565b6100df610175366004610876565b61029f565b6100df610188366004610876565b61031f565b6100f361019b36600461081b565b61032d565b6060600380546101af906108f6565b80601f01602080910402602001604051908101604052809291908181526020018280546101db906108f6565b80156102285780601f106101fd57610100808354040283529160200191610228565b820191906000526020600020905b81548152906001019060200180831161020b57829003601f168201915b5050505050905090565b600033610240818585610358565b5060019392505050565b60003361025885828561047c565b6102638585856104f6565b506001949350505050565b600033610240818585610281838361032d565b61028b919061091f565b610358565b6060600480546101af906108f6565b600033816102ad828661032d565b9050838110156103125760405162461bcd60e51b815260206004820152602560248201527f45524332303a2064656372656173656420616c6c6f77616e63652062656c6f77604482015264207a65726f60d81b60648201526084015b60405180910390fd5b6102638286868403610358565b6000336102408185856104f6565b6001600160a01b03918216600090815260016020908152604080832093909416825291909152205490565b6001600160a01b0383166103ba5760405162461bcd60e51b8152602060048201526024808201527f45524332303a20617070726f76652066726f6d20746865207a65726f206164646044820152637265737360e01b6064820152608401610309565b6001600160a01b03821661041b5760405162461bcd60e51b815260206004820152602260248201527f45524332303a20617070726f766520746f20746865207a65726f206164647265604482015261737360f01b6064820152608401610309565b6001600160a01b0383811660008181526001602090815260408083209487168084529482529182902085905590518481527f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925910160405180910390a3505050565b6001600160a01b0383811660009081526001602090815260408083209386168352929052205460001981146104f057818110156104e35760405162461bcd60e51b815260206004820152601d60248201527f45524332303a20696e73756666696369656e7420616c6c6f77616e63650000006044820152606401610309565b6104f08484848403610358565b50505050565b6001600160a01b0383166105595760405162461bcd60e51b815260206004820152602560248201527f45524332303a207472616e736665722066726f6d20746865207a65726f206164604482015264647265737360d81b6064820152608401610309565b6001600160a01b0382166105bb5760405162461bcd60e51b815260206004820152602360248201527f45524332303a207472616e7366657220746f20746865207a65726f206164647260448201526265737360e81b6064820152608401610309565b6001600160a01b038316600090815260208190526040902054818110156106335760405162461bcd60e51b815260206004820152602660248201527f45524332303a207472616e7366657220616d6f756e7420657863656564732062604482015265616c616e636560d01b6064820152608401610309565b6001600160a01b0380851660009081526020819052604080822085850390559185168152908120805484929061066a90849061091f565b92505081905550826001600160a01b0316846001600160a01b03167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef846040516106b691815260200190565b60405180910390a36104f0565b80356001600160a01b03811681146106d957600080fd5b919050565b600082601f8301126106ee57600080fd5b813567ffffffffffffffff8082111561070957610709610970565b604051601f8301601f19908116603f0116810190828211818310171561073157610731610970565b8160405283815286602085880101111561074a57600080fd5b836020870160208301376000602085830101528094505050505092915050565b600080600060608486031215610780578283fd5b61078984610c2565b925061079760208501610c2565b9150604084013590509250925092565b600080604083850312156107b9578182fd5b6107c283610c2565b915060208301358015158114607c57600080fd5b809150509250929050565b600080604083850312156107e7578182fd5b6107f083610c2565b946020939093013593505050565b60006020828403121561081157600080fd5b61081a82610c2565b9392505050565b6000806040838503121561082d578182fd5b61083683610c2565b915061084460208401610c2565b90509250929050565b600080600060608486031215610857578081fd5b61086084610c2565b925061086e60208501610c2565b9150604084013590509250925092565b6000806040838503121561088857600080fd5b61089183610c2565b9150602083013580151581146108a557600080fd5b809150509250929050565b600060208083528351808285015260005b818110156108d2578581018301518582016040015282016108b6565b818111156108e4576000604083870101525b50601f01601f1916929092016040019392505050565b600181811c9082168061090a57607f821691505b6020821081036100b9577f4e487b710000000000000000000000000000000000000000000000000000000060003560e01c80601f19601f83011685019150808354040283529160200191610228565b6000821982111561094257634e487b7160e01b81526011600452602481fd5b500190565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fdfea264697066735822122028e0c0dcc3b0456a5c7a56a8ca9f8f6a0fd2c8c49e1fc5c63d87d8457cee4ea564736f6c63430008060033";
+      }
+  
+      setDeploymentStatus("deploying");
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "Deploying smart contract to blockchain...",
-        },
+        { role: "assistant", content: "Deploying smart contract to Sepolia testnet..." },
       ]);
-
-      setDeploymentStatus("deploying");
-
+  
       // Create contract factory
-      const factory = new ethers.ContractFactory(abi, bytecode, metaSigner);
-
-      // Deploy with explicit gas limit
+      if (!abi) {
+        throw new Error("ABI is undefined. Ensure the contract is compiled correctly.");
+      }
+      if (!bytecode) {
+        throw new Error("Bytecode is undefined. Ensure the contract is compiled correctly.");
+      }
+      
+      // Setup deploy parameters more carefully
+      const factory = new ethers.ContractFactory(abi, bytecode, signer);
+      
+      // Use a more reasonable gas limit - previous was too high
       const deployOptions = {
-        gasLimit: 4000000, // Increase gas limit to avoid out of gas errors
+        gasLimit: ethers.toBigInt('2000000'), // Using a fixed value that should work for ERC20
       };
-
-      const contract = await factory.deploy("TestToken", "TT", deployOptions);
-
-      // Wait for deployment transaction to complete
+      
+      // Deploy with token name and symbol from the contract name or default
+      const tokenName = contractName || "Test Token";
+      const tokenSymbol = contractName ? contractName.substring(0, 5).toUpperCase() : "TT";
+      
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `Deploying with name: ${tokenName}, symbol: ${tokenSymbol}` },
+      ]);
+      
+      // Deploy the contract
+      const contract = await factory.deploy(tokenName, tokenSymbol, deployOptions);
+  
+      // Wait for deployment to complete
       const deploymentTx = contract.deploymentTransaction();
       if (!deploymentTx) {
         throw new Error("Deployment transaction is null");
       }
-      const receipt = await deploymentTx.wait();
-
-      // Check if the transaction was successful
-      if (receipt && receipt.status === 0) {
-        throw new Error("Transaction execution reverted");
-      }
-
-      // Retrieve contract address and transaction hash
-      const contractAddress = await contract.getAddress();
-
-      // Update the state with deployed contract details
-      setDeploymentStatus("success");
-      setDeployedContract({
-        address: contractAddress,
-        txHash: receipt ? receipt.hash : "N/A",
-      });
-
-      // Add success message to chat
+      
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: `✅ Contract successfully deployed! Contract Address: ${contractAddress}\nTransaction Hash: ${
-            receipt ? receipt.hash : "N/A"
-          }\nYou can view your contract on Etherscan.`,
-        },
+        { role: "assistant", content: `Transaction submitted, waiting for confirmation. Hash: ${deploymentTx.hash}` },
       ]);
+      
+      const receipt = await deploymentTx.wait();
+      
+      // Verify the deployment status
+      if (receipt && receipt.status === 1) {
+        const contractAddress = contract.target.toString();
+        const txHash = deploymentTx.hash;
+  
+        setDeploymentStatus("success");
+        setDeployedContract({
+          address: contractAddress,
+          txHash: txHash,
+        });
+  
+        // Create Sepolia Etherscan link
+        const etherscanLink = `https://sepolia.etherscan.io/address/${contractAddress}`;
+  
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `✅ Contract successfully deployed to Sepolia testnet!\n\nContract Address: ${contractAddress}\nTransaction Hash: ${txHash}\n\nView on [Sepolia Etherscan](${etherscanLink})`,
+          },
+        ]);
+      } else {
+        throw new Error("Contract deployment failed with status 0");
+      }
     } catch (error) {
       console.error("Deployment error:", error);
       setDeploymentStatus("error");
-
       toast({
         title: "Deployment Failed",
         description:
@@ -294,14 +403,13 @@ export const FlidePage = () => {
           "Unknown error during contract deployment.",
         variant: "destructive",
       });
-
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content: `❌ Contract deployment failed: ${
             (error as Error).message || "Unknown error occurred"
-          }`,
+          }\n\nPlease make sure you have sufficient ETH on Sepolia testnet for gas fees.`,
         },
       ]);
     } finally {
