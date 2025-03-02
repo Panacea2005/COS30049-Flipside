@@ -16,11 +16,11 @@ export function useGraphData(address: string | null) {
 
       try {
         let data = await neo4jClient.getGraphData(address);
-        
+
         // If no data is found or we want to supplement with Etherscan data
         if (!data || data.nodes.length === 0 || data.links.length === 0) {
           const etherscanData = await fetchEtherscanTransactions(address);
-          
+
           if (etherscanData) {
             // Merge database and Etherscan data
             if (!data) {
@@ -66,56 +66,65 @@ export function useGraphData(address: string | null) {
 
   const fetchEtherscanTransactions = async (address: string): Promise<GraphData | null> => {
     try {
-      const response = await fetch(`/api/etherscan/transactions?address=${address}`);
-      if (!response.ok) throw new Error('Failed to fetch from Etherscan');
+      // Import the service directly
+      const { fetchEtherscanTransactions } = await import('../../../lib/etherscan/etherscanTransactionService');
       
-      const data = await response.json();
-
-      if (!data || !data.transactions || !Array.isArray(data.transactions)) {
-        console.error('Invalid data format from Etherscan', data);
+      // Use the service directly
+      const transactions = await fetchEtherscanTransactions(1, 100, address);
+      
+      if (!transactions || transactions.length === 0) {
         return null;
       }
-
+      
+      // Convert the transactions to graph format
       const nodes: GraphNode[] = [{ id: address, isSearched: true }];
+      const processedAddresses = new Set<string>([address]);
+      
       const links: GraphLink[] = [];
-
-      data.transactions.forEach((tx: EtherscanTransaction) => {
-        const isOutgoing = tx.from.toLowerCase() === address.toLowerCase();
-        const otherAddress = isOutgoing ? tx.to : tx.from;
-        
-        // Add node if not already added
-        if (!nodes.some(node => node.id === otherAddress)) {
-          nodes.push({ id: otherAddress });
+      
+      transactions.forEach(tx => {
+        // Process nodes (addresses)
+        if (tx.toAddress && !processedAddresses.has(tx.toAddress)) {
+          nodes.push({ id: tx.toAddress, isSearched: false });
+          processedAddresses.add(tx.toAddress);
         }
-
-        const transaction: Transaction = {
-          hash: tx.hash,
-          fromAddress: tx.from,
-          toAddress: tx.to,
-          from: tx.from,
-          to: tx.to,
-          value: tx.value,
-          gas: tx.gas,
-          gasUsed: tx.gasUsed || "0",
-          gasPrice: tx.gasPrice,
-          timeStamp: tx.timeStamp,
-          timestamp: new Date(parseInt(tx.timeStamp) * 1000).toISOString(),
-          blockNumber: tx.blockNumber
-        };
-
-        links.push({
-          source: isOutgoing ? address : otherAddress,
-          target: isOutgoing ? otherAddress : address,
-          value: parseFloat(tx.value) || 0.1,
-          transactions: 1,
-          direction: isOutgoing ? 'out' : 'in',
-          firstTransaction: transaction.timestamp,
-          lastTransaction: transaction.timestamp,
-          hash: tx.hash,
-          transaction: transaction
-        });
+        
+        if (tx.fromAddress && !processedAddresses.has(tx.fromAddress)) {
+          nodes.push({ id: tx.fromAddress, isSearched: false });
+          processedAddresses.add(tx.fromAddress);
+        }
+        
+        // Process links (transactions)
+        if (tx.fromAddress && tx.toAddress) {
+          const direction = tx.fromAddress.toLowerCase() === address.toLowerCase() ? 'out' : 'in';
+          
+          // Fix 1: Convert value from string to number
+          const valueAsNumber = parseFloat(tx.value) || 0;
+          
+          links.push({
+            source: tx.fromAddress,
+            target: tx.toAddress,
+            value: valueAsNumber, // Now a number instead of string
+            transactions: 1,
+            direction,
+            firstTransaction: tx.timestamp,
+            lastTransaction: tx.timestamp,
+            hash: tx.hash,
+            // Fix 2: Include all required Transaction properties
+            transaction: {
+              hash: tx.hash,
+              fromAddress: tx.fromAddress,
+              toAddress: tx.toAddress,
+              value: tx.value,
+              gas: tx.gas,
+              gasPrice: tx.gasPrice,
+              blockNumber: tx.blockNumber,
+              timestamp: tx.timestamp
+            }
+          });
+        }
       });
-
+      
       return { nodes, links };
     } catch (error) {
       console.error('Error fetching Etherscan data:', error);
