@@ -1562,7 +1562,6 @@ export const FlidePage = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          ;
         </div>
         {showInitialMessage && (
           <div className="flex-1 flex items-center justify-center">

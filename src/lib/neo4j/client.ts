@@ -1,9 +1,16 @@
 import { Driver, Session, auth, driver as neo4jDriver } from "neo4j-driver";
-import { GraphData, Transaction, AddressInfo, GasData } from "./types";
+import { GraphData, Transaction, AddressInfo, GasData, BalanceData } from "./types";
+import { 
+  fetchAddressInfoFromEtherscan, 
+  fetchBalanceHistoryFromEtherscan, 
+  fetchGasDataFromEtherscan 
+} from '../etherscan/etherscanAddressService';
+import { fetchEtherscanTransactions, getTransactionCount } from '../etherscan/etherscanTransactionService';
 
 class Neo4jClient {
   private driver: Driver;
   private static instance: Neo4jClient;
+  private useEtherscan: boolean = false;
 
   private constructor() {
     const URI =
@@ -27,6 +34,15 @@ class Neo4jClient {
     };
 
     this.driver = neo4jDriver(URI, auth.basic(USER, PASSWORD), config);
+  }
+
+  public setUseEtherscan(useEtherscan: boolean) {
+    this.useEtherscan = useEtherscan;
+  }
+
+  // Method to get the current mode
+  public isUsingEtherscan() {
+    return this.useEtherscan;
   }
 
   static getInstance(): Neo4jClient {
@@ -56,59 +72,73 @@ class Neo4jClient {
     }
   }
 
-  async getTransactions(currentPage: number, pageSize: number) {
-    const skip = Math.trunc(Math.max(0, (currentPage - 1) * pageSize));
-
-    return this.withSession(async (session) => {
-      const result = await session.run(
-        `MATCH (from:nodes)-[p:transaction]->(to:nodes)
-         WITH from, to, p
-         ORDER BY p.block_timestamp DESC
-         SKIP toInteger($skip)
-         RETURN p {
-           .*,
-           fromAddress: from.addressId,
-           toAddress: to.addressId
-         } as transaction`,
-        { skip }
-      );
-
-      return result.records.map((record) => {
-        const tx = record.get("transaction");
-
-        // Handle Neo4j Integer objects
-        const getNumberValue = (value: any) => {
-          if (
-            value &&
-            typeof value === "object" &&
-            "low" in value &&
-            "high" in value
-          ) {
-            return value.low;
-          }
-          return typeof value === "bigint" ? Number(value) : value;
-        };
-
-        const blockTimestamp = getNumberValue(tx.block_timestamp);
-
-        return {
-          hash: tx.hash,
-          fromAddress: tx.fromAddress,
-          toAddress: tx.toAddress,
-          value:
-            typeof tx.value === "object"
-              ? tx.value.toString()
-              : tx.value?.toString(),
-          timestamp: this.formatTimestamp(blockTimestamp),
-          formattedDate: new Date(blockTimestamp * 1000).toLocaleString(),
-          blockNumber: getNumberValue(tx.block_number),
-          gas: getNumberValue(tx.gas),
-          gasUsed: getNumberValue(tx.gas_used),
-          gasPrice: getNumberValue(tx.gas_price),
-        };
+  async getTransactions(
+    page: number = 1,
+    pageSize: number = 10,
+    address?: string
+  ): Promise<Transaction[]> {
+    try {
+      if (this.useEtherscan) {
+        return await fetchEtherscanTransactions(page, pageSize, address);
+      }
+  
+      const skip = (page - 1) * pageSize; // Calculate the skip value for pagination
+  
+      return await this.withSession(async (session) => {
+        const result = await session.run(
+          `MATCH (from:nodes)-[p:transaction]->(to:nodes)
+           WITH from, to, p
+           ORDER BY p.block_timestamp DESC
+           SKIP toInteger($skip)
+           LIMIT toInteger($pageSize)
+           RETURN p {
+             .*,
+             fromAddress: from.addressId,
+             toAddress: to.addressId
+           } as transaction`,
+          { skip, pageSize }
+        );
+  
+        return result.records.map((record) => {
+          const tx = record.get("transaction");
+  
+          // Handle Neo4j Integer objects
+          const getNumberValue = (value: any) => {
+            if (
+              value &&
+              typeof value === "object" &&
+              "low" in value &&
+              "high" in value
+            ) {
+              return value.low;
+            }
+            return typeof value === "bigint" ? Number(value) : value;
+          };
+  
+          const blockTimestamp = getNumberValue(tx.block_timestamp);
+  
+          return {
+            hash: tx.hash,
+            fromAddress: tx.fromAddress,
+            toAddress: tx.toAddress,
+            value:
+              typeof tx.value === "object"
+                ? tx.value.toString()
+                : tx.value?.toString(),
+            timestamp: this.formatTimestamp(blockTimestamp),
+            formattedDate: new Date(blockTimestamp * 1000).toLocaleString(),
+            blockNumber: getNumberValue(tx.block_number),
+            gas: getNumberValue(tx.gas),
+            gasUsed: getNumberValue(tx.gas_used),
+            gasPrice: getNumberValue(tx.gas_price),
+          };
+        });
       });
-    });
-  }
+    } catch (error) {
+      console.error("Error getting transactions:", error);
+      return [];
+    }
+  }  
 
   async getAddressTypes() {
     const query = `
@@ -275,111 +305,159 @@ class Neo4jClient {
     });
   }
 
-  async getAddressInfo(address: string): Promise<AddressInfo> {
-    const query = `
-      MATCH (n:nodes {addressId: $address})
-      OPTIONAL MATCH (n)-[pOut:transaction]->() // Outgoing transactions
-      OPTIONAL MATCH ()-[pIn:transaction]->(n) // Incoming transactions
-      RETURN n.addressId AS addressId, 
-             n.type AS type, 
-             min(COALESCE(pOut.block_timestamp, pIn.block_timestamp)) AS firstSeen, 
-             max(COALESCE(pOut.block_timestamp, pIn.block_timestamp)) AS lastSeen, 
-             count(DISTINCT pOut) AS sentTransactions, 
-             count(DISTINCT pIn) AS receivedTransactions,
-             count(DISTINCT pOut) + count(DISTINCT pIn) AS totalTransactions, 
-             sum(DISTINCT CASE WHEN pIn.value IS NOT NULL THEN toFloat(pIn.value) ELSE 0 END) AS totalReceivedValue,
-             sum(DISTINCT CASE WHEN pOut.value IS NOT NULL THEN toFloat(pOut.value) ELSE 0 END) AS totalSentValue,
-             sum(DISTINCT CASE WHEN pIn.value IS NOT NULL THEN toFloat(pIn.value) ELSE 0 END) - 
-             sum(DISTINCT CASE WHEN pOut.value IS NOT NULL THEN toFloat(pOut.value) ELSE 0 END) AS balance
-    `;
+  async getAddressInfo(address: string): Promise<AddressInfo | null> {
+    try {
+      if (this.useEtherscan) {
+        return await fetchAddressInfoFromEtherscan(address);
+      }
+  
+      const query = `
+        MATCH (n:nodes {addressId: $address})
+        OPTIONAL MATCH (n)-[pOut:transaction]->() // Outgoing transactions
+        OPTIONAL MATCH ()-[pIn:transaction]->(n) // Incoming transactions
+        RETURN n.addressId AS addressId, 
+               n.type AS type, 
+               min(COALESCE(pOut.block_timestamp, pIn.block_timestamp)) AS firstSeen, 
+               max(COALESCE(pOut.block_timestamp, pIn.block_timestamp)) AS lastSeen, 
+               count(DISTINCT pOut) AS sentTransactions, 
+               count(DISTINCT pIn) AS receivedTransactions,
+               count(DISTINCT pOut) + count(DISTINCT pIn) AS totalTransactions, 
+               sum(DISTINCT CASE WHEN pIn.value IS NOT NULL THEN toFloat(pIn.value) ELSE 0 END) AS totalReceivedValue,
+               sum(DISTINCT CASE WHEN pOut.value IS NOT NULL THEN toFloat(pOut.value) ELSE 0 END) AS totalSentValue,
+               sum(DISTINCT CASE WHEN pIn.value IS NOT NULL THEN toFloat(pIn.value) ELSE 0 END) - 
+               sum(DISTINCT CASE WHEN pOut.value IS NOT NULL THEN toFloat(pOut.value) ELSE 0 END) AS balance
+      `;
+  
+      try {
+        return await this.withSession(async (session) => {
+          const result = await session.run(query, { address });
+          const record = result.records[0];
+  
+          if (!record) {
+            throw new Error("Not found in Neo4j");
+          }
+  
+          return {
+            addressId: record.get("addressId"),
+            type: record.get("type"),
+            balance: record.get("balance")
+              ? record.get("balance").toString()
+              : "0",
+            totalSentValue: record.get("totalSentValue")
+              ? record.get("totalSentValue").toString()
+              : "0",
+            totalReceivedValue: record.get("totalReceivedValue")
+              ? record.get("totalReceivedValue").toString()
+              : "0",
+            firstSeen: record.get("firstSeen")
+              ? this.formatTimestamp(record.get("firstSeen").toNumber())
+              : "",
+            lastSeen: record.get("lastSeen")
+              ? this.formatTimestamp(record.get("lastSeen").toNumber())
+              : "",
+            totalTransactions: record.get("totalTransactions").toNumber(),
+            sentTransactions: record.get("sentTransactions").toNumber(),
+            receivedTransactions: record.get("receivedTransactions").toNumber(),
+          };
+        });
+      } catch (neoError) {
+        console.log("Address not found in Neo4j, fetching from Etherscan");
+        return await fetchAddressInfoFromEtherscan(address);
+      }
+    } catch (error) {
+      console.error("Error getting address info:", error);
+      return null;
+    }
+  }  
 
-    return this.withSession(async (session) => {
-      const result = await session.run(query, { address });
-
-      const record = result.records[0];
-      return {
-        addressId: record.get("addressId"),
-        type: record.get("type"),
-        balance: record.get("balance") ? record.get("balance").toString() : "0",
-        totalSentValue: record.get("totalSentValue")
-          ? record.get("totalSentValue").toString()
-          : "0",
-        totalReceivedValue: record.get("totalReceivedValue")
-          ? record.get("totalReceivedValue").toString()
-          : "0",
-        firstSeen: record.get("firstSeen")
-          ? this.formatTimestamp(record.get("firstSeen").toNumber())
-          : "",
-        lastSeen: record.get("lastSeen")
-          ? this.formatTimestamp(record.get("lastSeen").toNumber())
-          : "",
-        totalTransactions: record.get("totalTransactions").toNumber(),
-        sentTransactions: record.get("sentTransactions").toNumber(),
-        receivedTransactions: record.get("receivedTransactions").toNumber(),
-      };
-    });
-  }
-
-  async getBalanceOverTime(
-    address: string
-  ): Promise<{ date: string; balance: number }[]> {
-    const query = `
-      MATCH (n:nodes {addressId: $address})-[p:transaction]->()
-      RETURN p.block_timestamp AS timestamp, 
-             CASE WHEN p.to = $address THEN toFloat(p.value) ELSE -toFloat(p.value) END AS balanceChange
-      ORDER BY timestamp
-    `;
-
-    return this.withSession(async (session) => {
-      const result = await session.run(query, { address });
-
-      let cumulativeBalance = 0;
-      return result.records.map((record) => {
-        const balanceChange = record.get("balanceChange").toNumber
-          ? record.get("balanceChange").toNumber()
-          : parseFloat(record.get("balanceChange"));
-        cumulativeBalance += balanceChange;
-        return {
-          date: this.formatTimestamp(
-            record.get("timestamp").toNumber
-              ? record.get("timestamp").toNumber()
-              : parseFloat(record.get("timestamp"))
-          ),
-          balance: cumulativeBalance,
-        };
-      });
-    });
-  }
+  async getBalanceOverTime(address: string): Promise<BalanceData[]> {
+    try {
+      if (this.useEtherscan) {
+        return await fetchBalanceHistoryFromEtherscan(address);
+      }
+  
+      const query = `
+        MATCH (n:nodes {addressId: $address})-[p:transaction]->()
+        RETURN p.block_timestamp AS timestamp, 
+               CASE WHEN p.to = $address THEN toFloat(p.value) ELSE -toFloat(p.value) END AS balanceChange
+        ORDER BY timestamp
+      `;
+  
+      try {
+        return await this.withSession(async (session) => {
+          const result = await session.run(query, { address });
+  
+          let cumulativeBalance = 0;
+          return result.records.map((record) => {
+            const balanceChange = record.get("balanceChange").toNumber
+              ? record.get("balanceChange").toNumber()
+              : parseFloat(record.get("balanceChange"));
+            cumulativeBalance += balanceChange;
+  
+            return {
+              date: this.formatTimestamp(
+                record.get("timestamp").toNumber
+                  ? record.get("timestamp").toNumber()
+                  : parseFloat(record.get("timestamp"))
+              ),
+              balance: cumulativeBalance,
+            };
+          });
+        });
+      } catch (neoError) {
+        console.log("Balance history not found in Neo4j, fetching from Etherscan");
+        return await fetchBalanceHistoryFromEtherscan(address);
+      }
+    } catch (error) {
+      console.error("Error getting balance over time:", error);
+      return [];
+    }
+  }  
 
   async getGasDataOverTime(address: string): Promise<GasData[]> {
-    const query = `
-      MATCH (n:nodes {addressId: $address})-[p:transaction]->()
-      RETURN p.block_timestamp AS timestamp, 
-             toFloat(p.transaction_fee) / 1e18 AS transactionFee
-      ORDER BY timestamp
-    `;
+    try {
+      if (this.useEtherscan) {
+        return await fetchGasDataFromEtherscan(address);
+      }
   
-    return this.withSession(async (session) => {
-      const result = await session.run(query, { address });
+      const query = `
+        MATCH (n:nodes {addressId: $address})-[p:transaction]->()
+        RETURN p.block_timestamp AS timestamp, 
+               toFloat(p.transaction_fee) / 1e18 AS transactionFee
+        ORDER BY timestamp
+      `;
   
-      let cumulativeTransactionFee = 0;
-      return result.records.map((record) => {
-        const transactionFee = record.get("transactionFee").toNumber
-          ? record.get("transactionFee").toNumber()
-          : parseFloat(record.get("transactionFee"));
-        cumulativeTransactionFee += transactionFee;
-        return {
-          date: this.formatTimestamp(
-            record.get("timestamp").toNumber
-              ? record.get("timestamp").toNumber()
-              : parseFloat(record.get("timestamp"))
-          ),
-          transactionFee: transactionFee,
-          totalTransactionFee: cumulativeTransactionFee,
-        };
-      });
-    });
-  }
+      try {
+        return await this.withSession(async (session) => {
+          const result = await session.run(query, { address });
+  
+          let cumulativeTransactionFee = 0;
+          return result.records.map((record) => {
+            const transactionFee = record.get("transactionFee").toNumber
+              ? record.get("transactionFee").toNumber()
+              : parseFloat(record.get("transactionFee"));
+            cumulativeTransactionFee += transactionFee;
+  
+            return {
+              date: this.formatTimestamp(
+                record.get("timestamp").toNumber
+                  ? record.get("timestamp").toNumber()
+                  : parseFloat(record.get("timestamp"))
+              ),
+              transactionFee: transactionFee,
+              totalTransactionFee: cumulativeTransactionFee,
+            };
+          });
+        });
+      } catch (neoError) {
+        console.log("Gas data not found in Neo4j, fetching from Etherscan");
+        return await fetchGasDataFromEtherscan(address);
+      }
+    } catch (error) {
+      console.error("Error getting gas data over time:", error);
+      return [];
+    }
+  }  
 }
 
 // Export singleton instance

@@ -9,18 +9,26 @@ export interface Transaction {
   hash: string;
   fromAddress: string;
   toAddress: string;
+  from?: string; 
+  to?: string; 
   value: string;
-  timestamp: string;
-  formattedDate: string;
-  blockNumber: number;
-  gas: number;
-  gasUsed: number;
-  gasPrice: number;
+  gas: string | number;
+  gasUsed?: string | number;
+  gasPrice: string | number;
+  blockNumber: number | string;
+  timestamp: string; 
+  timeStamp?: string; 
 }
 
 export interface GraphData {
-  nodes: { id: string }[];
+  nodes: GraphNode[];
   links: GraphLink[];
+}
+
+export interface GraphNode {
+  id: string;
+  isSearched?: boolean;
+  type?: 'eoa' | 'contract';
 }
 
 export interface GraphLink {
@@ -31,6 +39,22 @@ export interface GraphLink {
   direction: 'in' | 'out';
   firstTransaction: string;
   lastTransaction: string;
+  hash?: string;
+  transaction?: Transaction;
+}
+
+export interface EtherscanTransaction {
+  hash: string;
+  from: string;
+  to: string;
+  value: string;
+  gas: string;
+  gasPrice: string;
+  timeStamp: string;
+  blockNumber: string;
+  gasUsed?: string;
+  isError?: string;
+  txreceipt_status?: string;
 }
 
 export interface AddressInfo {
@@ -55,4 +79,22 @@ export interface GasData {
   date: string;
   transactionFee: number;
   totalTransactionFee: number; 
+}
+
+// D3 specific types for better type checking
+export interface NodeDatum extends d3.SimulationNodeDatum {
+  id: string;
+  value?: number;
+  isSearched?: boolean;
+  type?: 'eoa' | 'contract';
+}
+
+export interface LinkDatum extends d3.SimulationLinkDatum<NodeDatum> {
+  value: number;
+  transactions?: number;
+  direction?: 'in' | 'out';
+  firstTransaction?: string;
+  lastTransaction?: string;
+  hash?: string;
+  transaction?: Transaction;
 }

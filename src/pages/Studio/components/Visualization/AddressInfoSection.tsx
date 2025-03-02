@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, Legend } from 'recharts';
 import { ChartConfig, ChartContainer, ChartStyle, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 
 interface AddressInfoSectionProps {
   address: string;
@@ -20,6 +22,9 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
   const [balanceData, setBalanceData] = useState<BalanceData[]>([]);
   const [gasData, setGasData] = useState<GasData[]>([]);
   const [activeChart, setActiveChart] = useState<'balance' | 'gas'>('balance');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<'database' | 'etherscan'>('database');
 
   const [totals, setTotals] = useState({
     balance: 0,
@@ -27,9 +32,33 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
   });
 
   useEffect(() => {
-    neo4jClient.getAddressInfo(address).then(setAddressInfo);
-    fetchBalanceData();
-    fetchGasData();
+    setIsLoading(true);
+    setError(null);
+    
+    // Check which data source is being used
+    const isUsingEtherscan = neo4jClient.isUsingEtherscan();
+    setDataSource(isUsingEtherscan ? 'etherscan' : 'database');
+    
+    async function fetchData() {
+      try {
+        const info = await neo4jClient.getAddressInfo(address);
+        if (!info) {
+          throw new Error('Address information not found');
+        }
+        setAddressInfo(info);
+        
+        await fetchBalanceData();
+        await fetchGasData();
+        
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching address data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch address data');
+        setIsLoading(false);
+      }
+    }
+    
+    fetchData();
   }, [address]);
 
   useEffect(() => {
@@ -42,25 +71,66 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
   }, [addressInfo]);
 
   const fetchBalanceData = async () => {
-    const result = await neo4jClient.getBalanceOverTime(address);
-    setBalanceData(result);
+    try {
+      const result = await neo4jClient.getBalanceOverTime(address);
+      console.log("Fetched Balance Data:", result);
+      setBalanceData(result);
+    } catch (err) {
+      console.error('Error fetching balance data:', err);
+    }
   };
 
   const fetchGasData = async () => {
-    const gasData = await neo4jClient.getGasDataOverTime(address);
-    console.log("Fetched Gas Data:", gasData); // Log the fetched gas data
-    setGasData(gasData);
-    setTotals((prevTotals) => ({
-      ...prevTotals,
-      totalTransactionFee: gasData.reduce((acc, curr) => acc + curr.transactionFee, 0)
-    }));
+    try {
+      const gasData = await neo4jClient.getGasDataOverTime(address);
+      console.log("Fetched Gas Data:", gasData);
+      setGasData(gasData);
+      setTotals((prevTotals) => ({
+        ...prevTotals,
+        totalTransactionFee: gasData.reduce((acc, curr) => acc + curr.transactionFee, 0)
+      }));
+    } catch (err) {
+      console.error('Error fetching gas data:', err);
+    }
   };
 
   useEffect(() => {
-    console.log("Updated Totals:", totals); // Log the updated totals
+    console.log("Updated Totals:", totals);
   }, [totals]);
 
-  if (!addressInfo) return null;
+  if (isLoading) {
+    return (
+      <Card className="bg-background">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Loading Address Details...</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !addressInfo) {
+    return (
+      <Card className="bg-background">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-red-600">Error Loading Address</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>
+              {error || "Failed to load address information. Please try again."}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const pieData = [
     { label: 'Sent', value: addressInfo.sentTransactions },
