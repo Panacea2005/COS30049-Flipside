@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useGraphData } from '../../../../lib/neo4j/hooks/useGraphData';
 import { Transaction, NodeDatum, LinkDatum } from '../../../../lib/neo4j/types';
@@ -11,10 +11,70 @@ interface TransactionGraphProps {
 
 export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: TransactionGraphProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const { graphData, loading, error } = useGraphData(address);
+  const { graphData: initialGraphData, loading, error, fetchAddressConnections } = useGraphData(address);
+  
+  // State to track expanded nodes and the combined graph data
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set([address]));
+  const [combinedGraphData, setCombedGraphData] = useState<{ nodes: NodeDatum[], links: LinkDatum[] }>({ 
+    nodes: [], 
+    links: [] 
+  });
+  
+  // State to track if we're currently loading additional data
+  const [expandLoading, setExpandLoading] = useState<string | null>(null);
+
+  // Effect to set initial data when it loads
+  useEffect(() => {
+    if (!loading && initialGraphData.nodes.length) {
+      setCombedGraphData(initialGraphData);
+      setExpandedNodes(new Set([address]));
+    }
+  }, [initialGraphData, loading, address]);
+
+  // Function to expand a node and fetch its connections
+  const expandNode = async (nodeId: string) => {
+    if (expandedNodes.has(nodeId) || expandLoading) return;
+    
+    setExpandLoading(nodeId);
+    try {
+      const newConnections = await fetchAddressConnections(nodeId);
+      
+      // Combine with existing data, avoiding duplicates
+      const existingNodeIds = new Set(combinedGraphData.nodes.map(n => n.id));
+      const newNodes = newConnections.nodes.filter((node: { id: string; }) => !existingNodeIds.has(node.id));
+      
+      // Check for duplicate links (by their hash or by source-target pair if no hash)
+      const existingLinkKeys = new Set();
+      combinedGraphData.links.forEach(link => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        existingLinkKeys.add(link.hash || `${sourceId}-${targetId}`);
+      });
+      
+      const newLinks = newConnections.links.filter((link: LinkDatum) => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+        const linkKey = link.hash || `${sourceId}-${targetId}`;
+        return !existingLinkKeys.has(linkKey);
+      });
+      
+      // Update combined data
+      setCombedGraphData(prev => ({
+        nodes: [...prev.nodes, ...newNodes],
+        links: [...prev.links, ...newLinks]
+      }));
+      
+      // Mark node as expanded
+      setExpandedNodes(prev => new Set([...prev, nodeId]));
+    } catch (err) {
+      console.error('Error expanding node:', err);
+    } finally {
+      setExpandLoading(null);
+    }
+  };
 
   useEffect(() => {
-    if (!svgRef.current || loading || !graphData.nodes.length || !graphData.links.length) return;
+    if (!svgRef.current || !combinedGraphData.nodes.length || !combinedGraphData.links.length) return;
 
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
@@ -62,23 +122,19 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
     svg.call(zoom);
 
     // Double-click to reset zoom with smoother animation
-    svg.on('dblclick.zoom', () => {
-      svg.transition()
-        .duration(950)
-        .call(zoom.transform, d3.zoomIdentity);
-    });
+    svg.on('dblclick.zoom', null); // Remove default zoom double-click behavior
 
     // Create main group for graph elements
     const g = svg.append('g');
 
     // Calculate link strength based on value
     const linkScale = d3.scaleLinear()
-      .domain([0, d3.max(graphData.links, d => d.value) || 1])
+      .domain([0, d3.max(combinedGraphData.links, d => d.value) || 1])
       .range([1, 4]);
 
     // Create forces with improved parameters for better spacing
-    const simulation = d3.forceSimulation<NodeDatum>(graphData.nodes)
-      .force('link', d3.forceLink<NodeDatum, LinkDatum>(graphData.links)
+    const simulation = d3.forceSimulation<NodeDatum>(combinedGraphData.nodes)
+      .force('link', d3.forceLink<NodeDatum, LinkDatum>(combinedGraphData.links)
         .id(d => d.id)
         .distance(150))
       .force('charge', d3.forceManyBody()
@@ -121,7 +177,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
 
     // Create links with STRAIGHT PATHS instead of curves
     const link = linkGroup.selectAll('line')
-      .data(graphData.links)
+      .data(combinedGraphData.links)
       .join('line')
       .attr('stroke', '#cbd5e1')
       .attr('stroke-width', d => linkScale(d.value))
@@ -147,7 +203,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
             .attr('filter', 'url(#glow-effect)');
         }
       })
-      .on('mouseover', function(event: MouseEvent, d: LinkDatum) {
+      .on('mouseover', function(_event: MouseEvent, d: LinkDatum) {
         d3.select(this)
           .attr('stroke', '#8b5cf6')
           .attr('stroke-width', linkScale(d.value) + 1.5)
@@ -206,7 +262,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
 
     // Create nodes with enhanced appearance
     const node = nodeGroup.selectAll('g')
-      .data(graphData.nodes)
+      .data(combinedGraphData.nodes)
       .join('g')
       .attr('class', 'node')
       .style('cursor', 'pointer');
@@ -217,14 +273,14 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
       if (d.id === address || d.isSearched) {
         return '#8b5cf6'; // Purple for the searched address
       }
+      
+      // If this is an expanded node
+      if (expandedNodes.has(d.id)) {
+        return '#3b82f6'; // Blue for expanded nodes
+      }
 
-      // Check if this node is from Etherscan data
-      const hasDbConnection = graphData.links.some(link =>
-        ((link.source as NodeDatum).id === d.id || (link.target as NodeDatum).id === d.id) &&
-        !link.hash
-      );
-
-      return hasDbConnection ? '#475569' : '#3b82f6'; // Darker slate for DB nodes, brighter blue for Etherscan-only nodes
+      // Not yet expanded
+      return '#64748b'; // Slate for unexpanded nodes
     };
 
     // Enhanced pulse effect for searched address with multiple rings
@@ -247,6 +303,29 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
       .attr('stroke-dasharray', '2,2')
       .attr('opacity', 0.4)
       .attr('class', 'pulse-ring-inner');
+
+    // Add loading indicator for nodes being expanded
+    if (expandLoading) {
+      node.filter(d => d.id === expandLoading)
+        .append('circle')
+        .attr('r', 22)
+        .attr('fill', 'none')
+        .attr('stroke', '#3b82f6')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '4,4')
+        .attr('class', 'loading-ring')
+        .style('animation', 'spin 1.5s linear infinite');
+
+      // Add the keyframes animation for the loading indicator
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes spin {
+          0% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: 25; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     // Add improved animation for the pulsing effect
     const pulseAnimation = () => {
@@ -271,6 +350,16 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
 
     pulseAnimation();
 
+    // Add "expand" indicator for unexpanded nodes
+    node.filter(d => !expandedNodes.has(d.id))
+      .append('circle')
+      .attr('r', 18)
+      .attr('fill', 'none')
+      .attr('stroke', '#3b82f6')
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '2,2')
+      .attr('opacity', 0.5);
+
     // Add node circles with improved styling
     node.append('circle')
       .attr('r', 14)
@@ -280,7 +369,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
       .attr('filter', 'url(#glow-effect)');
 
     // Add gradient for more attractive nodes
-    graphData.nodes.forEach((d, i) => {
+    combinedGraphData.nodes.forEach((d, i) => {
       const color = getNodeColor(d);
       const gradientId = `gradient-${i}`;
       
@@ -303,6 +392,16 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
         .attr('fill', `url(#${gradientId})`);
     });
 
+    // Add "+" sign to unexpanded nodes
+    node.filter(d => !expandedNodes.has(d.id))
+      .append('text')
+      .text('+')
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'central')
+      .attr('fill', 'white')
+      .attr('font-size', '16px')
+      .attr('font-weight', 'bold');
+
     // Add address labels with better styling
     node.append('text')
       .text(d => `${d.id.substring(0, 6)}...`)
@@ -320,8 +419,24 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
       .attr('stroke-width', 8)
       .attr('class', 'highlight-circle');
 
+    // Track click time for double-click detection
+    let lastClickTime = 0;
+    const doubleClickDelay = 300; // ms
+    
     // Add enhanced interactivity for nodes
-    node.on('click', (_: MouseEvent, d: NodeDatum) => onNodeClick(d.id))
+    node.on('click', function(_event: MouseEvent, d: NodeDatum) {
+        const currentTime = new Date().getTime();
+        const isDoubleClick = currentTime - lastClickTime < doubleClickDelay;
+        lastClickTime = currentTime;
+        
+        if (isDoubleClick) {
+          // Double-click: set as new central node
+          onNodeClick(d.id);
+        } else if (!expandedNodes.has(d.id)) {
+          // Single-click on unexpanded node: expand it
+          expandNode(d.id);
+        }
+      })
       .on('mouseover', function(_: MouseEvent, d: NodeDatum) {
         // Highlight the hovered node
         d3.select(this).select('circle')
@@ -345,7 +460,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
           .attr('x', -100)
           .attr('y', -18)
           .attr('width', 200)
-          .attr('height', 28)
+          .attr('height', expandedNodes.has(d.id) ? 48 : 28)
           .attr('rx', 6)
           .attr('fill', 'white')
           .attr('stroke', '#e2e8f0')
@@ -358,8 +473,25 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
           .attr('fill', '#1e293b')
           .attr('font-size', '12px')
           .attr('font-weight', 'medium')
-          .attr('dy', '-2')
+          .attr('dy', '-7')
           .text(d.id);
+          
+        // Add action hint based on node state
+        if (expandedNodes.has(d.id)) {
+          tooltip.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('fill', '#64748b')
+            .attr('font-size', '10px')
+            .attr('dy', '8')
+            .text('Double-click to focus on this address');
+        } else {
+          tooltip.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('fill', '#64748b')
+            .attr('font-size', '10px')
+            .attr('dy', '8')
+            .text('Click to expand connections');
+        }
       })
       .on('mouseout', function() {
         // Reset the node size
@@ -392,7 +524,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
       particleGroup.selectAll('.particle').remove();
       
       // Create new particles for each link
-      graphData.links.forEach((d: LinkDatum) => {
+      combinedGraphData.links.forEach((d: LinkDatum) => {
         if (Math.random() > 0.7) return; // Only animate some links for performance
         
         const sourceNode = d.source as NodeDatum;
@@ -463,7 +595,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
       .attr('x', -10)
       .attr('y', -10)
       .attr('width', 170)
-      .attr('height', 90)
+      .attr('height', 110)
       .attr('rx', 6)
       .attr('fill', 'white')
       .attr('opacity', 0.8)
@@ -479,38 +611,56 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
       .attr('fill', '#1e293b')
       .text('Network Legend');
     
-    // Legend items
+    // Updated legend items
     const legendItems = [
       { color: '#8b5cf6', label: 'Searched Address' },
-      { color: '#475569', label: 'Neo4j Address' },
-      { color: '#3b82f6', label: 'Etherscan Address' }
+      { color: '#3b82f6', label: 'Expanded Node' },
+      { color: '#64748b', label: 'Unexpanded Node' },
+      { symbol: '+', label: 'Click to expand' }
     ];
 
     legendItems.forEach((item, i) => {
       const legendItem = legend.append('g')
         .attr('transform', `translate(0, ${i * 20 + 25})`);
 
-      // Create gradient for legend items too
-      const gradientId = `legend-gradient-${i}`;
-      const gradient = defs.append('radialGradient')
-        .attr('id', gradientId)
-        .attr('cx', '30%')
-        .attr('cy', '30%')
-        .attr('r', '70%');
-      
-      gradient.append('stop')
-        .attr('offset', '0%')
-        .attr('stop-color', d3.rgb(item.color).brighter(0.5).toString());
-      
-      gradient.append('stop')
-        .attr('offset', '100%')
-        .attr('stop-color', item.color);
+      if (item.color) {
+        // Create gradient for legend items too
+        const gradientId = `legend-gradient-${i}`;
+        const gradient = defs.append('radialGradient')
+          .attr('id', gradientId)
+          .attr('cx', '30%')
+          .attr('cy', '30%')
+          .attr('r', '70%');
+        
+        gradient.append('stop')
+          .attr('offset', '0%')
+          .attr('stop-color', d3.rgb(item.color).brighter(0.5).toString());
+        
+        gradient.append('stop')
+          .attr('offset', '100%')
+          .attr('stop-color', item.color);
 
-      legendItem.append('circle')
-        .attr('r', 6)
-        .attr('fill', `url(#${gradientId})`)
-        .attr('stroke', 'white')
-        .attr('stroke-width', 1);
+        legendItem.append('circle')
+          .attr('r', 6)
+          .attr('fill', `url(#${gradientId})`)
+          .attr('stroke', 'white')
+          .attr('stroke-width', 1);
+      } else if (item.symbol) {
+        // For the "+" symbol entry
+        legendItem.append('circle')
+          .attr('r', 6)
+          .attr('fill', '#64748b')
+          .attr('stroke', 'white')
+          .attr('stroke-width', 1);
+          
+        legendItem.append('text')
+          .text(item.symbol)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'central')
+          .attr('font-size', '10px')
+          .attr('font-weight', 'bold')
+          .attr('fill', 'white');
+      }
 
       legendItem.append('text')
         .attr('x', 15)
@@ -519,6 +669,15 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
         .attr('fill', '#475569')
         .text(item.label);
     });
+
+    // Add help text
+    const helpText = svg.append('g')
+      .attr('transform', `translate(20, ${height - 20})`);
+      
+    helpText.append('text')
+      .attr('font-size', '11px')
+      .attr('fill', '#64748b')
+      .text('Single-click: Expand node • Double-click: Focus on node');
 
     // Update positions on simulation tick
     simulation.on('tick', () => {
@@ -538,7 +697,7 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
     return () => {
       simulation.stop();
     };
-  }, [graphData, address, loading, onNodeClick, onTransactionSelect]);
+  }, [combinedGraphData, address, loading, expandLoading, expandedNodes, onNodeClick, onTransactionSelect]);
 
   if (loading) {
     return (
@@ -564,60 +723,50 @@ export const TransactionGraph = ({ address, onNodeClick, onTransactionSelect }: 
     );
   }
 
-  if (!graphData.nodes.length || !graphData.links.length) {
+  if (!combinedGraphData.nodes.length || !combinedGraphData.links.length) {
     return (
       <div className="flex items-center justify-center h-96 bg-white rounded-lg">
         <div className="text-gray-500 p-6 text-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
           </svg>
-          <p className="text-lg font-medium">No transaction data found</p>
-          <p className="mt-1">Try searching for a different address with more transaction history</p>
+          <h3 className="text-lg font-medium mb-2">No transaction data found</h3>
+          <p>This address doesn't have any transaction connections to display.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative h-full">
-      <svg ref={svgRef} className="w-full h-full" />
-      <div className="absolute bottom-4 right-4 bg-white/90 p-3 rounded-lg shadow-lg text-sm">
-        <div className="flex items-center space-x-2 mb-1">
-          <div className="w-2 h-2 rounded-full bg-purple-600"></div>
-          <p className="font-medium">Showing {graphData.nodes.length} addresses and {graphData.links.length} transactions</p>
-        </div>
-        <p className="text-purple-700 font-medium flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          Click on nodes to explore their transactions
-        </p>
-      </div>
+    <div className="overflow-hidden h-full w-full rounded-lg border border-slate-200">
+      <svg ref={svgRef} className="w-full h-full min-h-[500px]"></svg>
     </div>
   );
 };
 
-// Helper function for drag behavior
+// Helper function for node dragging
 function drag(simulation: d3.Simulation<NodeDatum, undefined>) {
-  function dragstarted(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>) {
+  function dragstarted(event: d3.D3DragEvent<Element, unknown, NodeDatum>, d: NodeDatum) {
     if (!event.active) simulation.alphaTarget(0.3).restart();
-    event.subject.fx = event.subject.x;
-    event.subject.fy = event.subject.y;
+    d.fx = d.x;
+    d.fy = d.y;
   }
 
-  function dragged(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>) {
-    event.subject.fx = event.x;
-    event.subject.fy = event.y;
+  function dragged(event: d3.D3DragEvent<Element, unknown, NodeDatum>, d: NodeDatum) {
+    d.fx = event.x;
+    d.fy = event.y;
   }
 
-  function dragended(event: d3.D3DragEvent<SVGGElement, NodeDatum, NodeDatum>) {
+  function dragended(event: d3.D3DragEvent<Element, unknown, NodeDatum>, d: NodeDatum) {
     if (!event.active) simulation.alphaTarget(0);
-    event.subject.fx = null;
-    event.subject.fy = null;
+    d.fx = null;
+    d.fy = null;
   }
 
-  return d3.drag<SVGGElement, NodeDatum>()
-    .on('start', dragstarted)
-    .on('drag', dragged)
-    .on('end', dragended);
+  return d3.drag()
+    .on('start', (event, d) => dragstarted(event, d as NodeDatum))
+    .on('drag', (event, d) => dragged(event, d as NodeDatum))
+    .on('end', (event, d) => dragended(event, d as NodeDatum));
 }
+
+export default TransactionGraph;

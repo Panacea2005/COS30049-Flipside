@@ -4,20 +4,30 @@ export interface WalletNode {
   firstSeen: string;
   lastSeen: string;
 }
-
 export interface Transaction {
+  // Core transaction properties
   hash: string;
   fromAddress: string;
   toAddress: string;
-  from?: string; 
-  to?: string; 
   value: string;
   gas: string | number;
   gasUsed: string | number;
   gasPrice: string | number;
   blockNumber: number | string;
-  timestamp: string; 
-  timeStamp?: string; 
+  
+  // Timestamp handling (supporting both formats)
+  timestamp: string;
+  timeStamp?: string;  // Alternative property name found in some APIs
+  
+  // Optional address properties (alternative formats)
+  from?: string;
+  to?: string;
+  
+  // Status field used in the component
+  status?: 'success' | 'pending' | 'failed';
+  
+  // Optional nonce field used in the component
+  nonce?: number | string;
 }
 
 export interface GraphData {
@@ -29,6 +39,10 @@ export interface GraphNode {
   id: string;
   isSearched?: boolean;
   type?: 'eoa' | 'contract';
+  // Additional node properties that might be useful
+  label?: string;
+  balance?: string;
+  totalTransactions?: number;
 }
 
 export interface GraphLink {
@@ -46,11 +60,14 @@ export interface GraphLink {
 export interface EtherscanTransaction {
   hash: string;
   from: string;
+  fromAddress?: string;
   to: string;
+  toAddress?: string;
   value: string;
   gas: string;
   gasPrice: string;
   timeStamp: string;
+  timestamp?: string;
   blockNumber: string;
   gasUsed?: string;
   isError?: string;
@@ -87,6 +104,11 @@ export interface NodeDatum extends d3.SimulationNodeDatum {
   value?: number;
   isSearched?: boolean;
   type?: 'eoa' | 'contract';
+  totalTransactions?: number;
+  balance?: string;
+  // Added fx and fy which are used by D3 for fixed positions during dragging
+  fx?: number | null;
+  fy?: number | null;
 }
 
 export interface LinkDatum extends d3.SimulationLinkDatum<NodeDatum> {
@@ -97,4 +119,12 @@ export interface LinkDatum extends d3.SimulationLinkDatum<NodeDatum> {
   lastTransaction?: string;
   hash?: string;
   transaction?: Transaction;
+}
+
+// Interface for the hooks and components
+export interface GraphDataHook {
+  graphData: { nodes: NodeDatum[]; links: LinkDatum[] };
+  loading: boolean;
+  error: string | null;
+  fetchAddressConnections: (address: string) => Promise<{ nodes: NodeDatum[]; links: LinkDatum[] }>;
 }

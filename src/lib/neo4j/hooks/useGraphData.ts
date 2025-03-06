@@ -2,24 +2,24 @@ import { useState, useEffect } from 'react';
 import { neo4jClient } from '../client';
 import { GraphData, GraphNode, GraphLink, NodeDatum, LinkDatum } from '../types';
 
-export function useGraphData(address: string | null) {
+export function useGraphData(initialAddress: string | null) {
   const [loading, setLoading] = useState(false);
   const [graphData, setGraphData] = useState<{ nodes: NodeDatum[]; links: LinkDatum[] }>({ nodes: [], links: [] });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!address) return;
+    if (!initialAddress) return;
 
     const fetchGraphData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        let data = await neo4jClient.getGraphData(address);
+        let data = await neo4jClient.getGraphData(initialAddress);
 
         // If no data is found or we want to supplement with Etherscan data
         if (!data || data.nodes.length === 0 || data.links.length === 0) {
-          const etherscanData = await fetchEtherscanTransactions(address);
+          const etherscanData = await fetchEtherscanTransactions(initialAddress);
 
           if (etherscanData) {
             // Merge database and Etherscan data
@@ -37,7 +37,7 @@ export function useGraphData(address: string | null) {
             nodes: data.nodes.map(node => ({
               ...node,
               id: node.id,
-              isSearched: node.id === address
+              isSearched: node.id === initialAddress
             })),
             links: data.links.map(link => ({
               source: link.source,
@@ -62,7 +62,47 @@ export function useGraphData(address: string | null) {
     };
 
     fetchGraphData();
-  }, [address]);
+  }, [initialAddress]);
+
+  const fetchAddressConnections = async (address: string): Promise<{ nodes: NodeDatum[]; links: LinkDatum[] }> => {
+    try {
+      let data = await neo4jClient.getGraphData(address);
+      
+      // If no data from Neo4j, try Etherscan
+      if (!data || data.nodes.length === 0 || data.links.length === 0) {
+        const etherscanData = await fetchEtherscanTransactions(address);
+        if (etherscanData) {
+          data = etherscanData;
+        }
+      }
+      
+      if (!data) {
+        return { nodes: [], links: [] };
+      }
+      
+      return {
+        nodes: data.nodes.map(node => ({
+          ...node,
+          id: node.id,
+          isSearched: node.id === address
+        })),
+        links: data.links.map(link => ({
+          source: link.source,
+          target: link.target,
+          value: link.value,
+          transactions: link.transactions || 1,
+          direction: link.direction as 'in' | 'out',
+          firstTransaction: link.firstTransaction,
+          lastTransaction: link.lastTransaction,
+          hash: link.hash,
+          transaction: link.transaction
+        }))
+      };
+    } catch (error) {
+      console.error("Error fetching address connections:", error);
+      throw error;
+    }
+  };
 
   const fetchEtherscanTransactions = async (address: string): Promise<GraphData | null> => {
     try {
@@ -98,19 +138,19 @@ export function useGraphData(address: string | null) {
         if (tx.fromAddress && tx.toAddress) {
           const direction = tx.fromAddress.toLowerCase() === address.toLowerCase() ? 'out' : 'in';
           
-          // Fix 1: Convert value from string to number
+          // Convert value from string to number
           const valueAsNumber = parseFloat(tx.value) || 0;
           
           links.push({
             source: tx.fromAddress,
             target: tx.toAddress,
-            value: valueAsNumber, // Now a number instead of string
+            value: valueAsNumber,
             transactions: 1,
             direction,
             firstTransaction: tx.timestamp,
             lastTransaction: tx.timestamp,
             hash: tx.hash,
-            // Fix 2: Include all required Transaction properties
+            // Include all required Transaction properties
             transaction: {
               hash: tx.hash,
               fromAddress: tx.fromAddress,
@@ -120,7 +160,7 @@ export function useGraphData(address: string | null) {
               gasPrice: tx.gasPrice,
               blockNumber: tx.blockNumber,
               timestamp: tx.timestamp,
-              gasUsed: ''
+              gasUsed: tx.gasUsed || '0'
             }
           });
         }
@@ -133,5 +173,5 @@ export function useGraphData(address: string | null) {
     }
   };
 
-  return { graphData, loading, error };
+  return { graphData, loading, error, fetchAddressConnections };
 }
