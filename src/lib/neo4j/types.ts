@@ -13,7 +13,7 @@ export interface Transaction {
   to?: string; 
   value: string;
   gas: string | number;
-  gasUsed?: string | number;
+  gasUsed: string | number;
   gasPrice: string | number;
   blockNumber: number | string;
   timestamp: string; 

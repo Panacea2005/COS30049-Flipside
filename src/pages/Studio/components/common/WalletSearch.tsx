@@ -258,7 +258,7 @@ export const WalletSearch = ({
               >
                 {/* Replace with your actual logo */}
                 <img
-                  src='"/flipside-logo.svg"'
+                  src='/eth.svg'
                   alt="Logo"
                   style={{ width: "4rem", height: "4rem" }}
                 />

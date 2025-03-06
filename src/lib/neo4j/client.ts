@@ -5,7 +5,7 @@ import {
   fetchBalanceHistoryFromEtherscan, 
   fetchGasDataFromEtherscan 
 } from '../etherscan/etherscanAddressService';
-import { fetchEtherscanTransactions, getTransactionCount } from '../etherscan/etherscanTransactionService';
+import { fetchEtherscanTransactions } from '../etherscan/etherscanTransactionService';
 
 class Neo4jClient {
   private driver: Driver;

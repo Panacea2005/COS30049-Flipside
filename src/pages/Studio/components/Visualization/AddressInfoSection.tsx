@@ -1,63 +1,98 @@
-import { useEffect, useState } from 'react';
-import { neo4jClient } from '../../../../lib/neo4j/client';
-import { AddressInfo, BalanceData, GasData } from '../../../../lib/neo4j/types';
-import { Badge } from '@/components/ui/badge';
-import { PieChart, Pie, Cell, ResponsiveContainer, Sector, Label, LineChart, Line, XAxis, CartesianGrid, YAxis, Tooltip as RechartsTooltip } from 'recharts';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, Legend } from 'recharts';
-import { ChartConfig, ChartContainer, ChartStyle, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { neo4jClient } from "../../../../lib/neo4j/client";
+import { AddressInfo, BalanceData, GasData } from "../../../../lib/neo4j/types";
+import { Badge } from "@/components/ui/badge";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Sector,
+  Label,
+  LineChart,
+  Line,
+  XAxis,
+  CartesianGrid,
+  YAxis,
+  Tooltip as RechartsTooltip,
+} from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { BarChart, Bar, Legend } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartStyle,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 interface AddressInfoSectionProps {
   address: string;
 }
 
-const COLORS = ['#4F46E5', '#818CF8'];
+const COLORS = ["#4F46E5", "#818CF8"];
 
 export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
   const [addressInfo, setAddressInfo] = useState<AddressInfo | null>(null);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [balanceData, setBalanceData] = useState<BalanceData[]>([]);
   const [gasData, setGasData] = useState<GasData[]>([]);
-  const [activeChart, setActiveChart] = useState<'balance' | 'gas'>('balance');
+  const [activeChart, setActiveChart] = useState<"balance" | "gas">("balance");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<'database' | 'etherscan'>('database');
+  const [dataSource, setDataSource] = useState<"database" | "etherscan">(
+    "database"
+  );
 
   const [totals, setTotals] = useState({
     balance: 0,
-    totalTransactionFee: 0
+    totalTransactionFee: 0,
   });
 
   useEffect(() => {
     setIsLoading(true);
     setError(null);
-    
+
     // Check which data source is being used
     const isUsingEtherscan = neo4jClient.isUsingEtherscan();
-    setDataSource(isUsingEtherscan ? 'etherscan' : 'database');
-    
+    setDataSource(isUsingEtherscan ? "etherscan" : "database");
+
     async function fetchData() {
       try {
         const info = await neo4jClient.getAddressInfo(address);
         if (!info) {
-          throw new Error('Address information not found');
+          throw new Error("Address information not found");
         }
         setAddressInfo(info);
-        
+
         await fetchBalanceData();
         await fetchGasData();
-        
+
         setIsLoading(false);
       } catch (err) {
-        console.error('Error fetching address data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch address data');
+        console.error("Error fetching address data:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch address data"
+        );
         setIsLoading(false);
       }
     }
-    
+
     fetchData();
   }, [address]);
 
@@ -76,7 +111,7 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
       console.log("Fetched Balance Data:", result);
       setBalanceData(result);
     } catch (err) {
-      console.error('Error fetching balance data:', err);
+      console.error("Error fetching balance data:", err);
     }
   };
 
@@ -87,10 +122,13 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
       setGasData(gasData);
       setTotals((prevTotals) => ({
         ...prevTotals,
-        totalTransactionFee: gasData.reduce((acc, curr) => acc + curr.transactionFee, 0)
+        totalTransactionFee: gasData.reduce(
+          (acc, curr) => acc + curr.transactionFee,
+          0
+        ),
       }));
     } catch (err) {
-      console.error('Error fetching gas data:', err);
+      console.error("Error fetching gas data:", err);
     }
   };
 
@@ -102,7 +140,9 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
     return (
       <Card className="bg-background">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">Loading Address Details...</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Loading Address Details...
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center h-64">
@@ -117,7 +157,9 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
     return (
       <Card className="bg-background">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-red-600">Error Loading Address</CardTitle>
+          <CardTitle className="text-2xl font-bold text-red-600">
+            Error Loading Address
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -133,13 +175,16 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
   }
 
   const pieData = [
-    { label: 'Sent', value: addressInfo.sentTransactions },
-    { label: 'Received', value: addressInfo.receivedTransactions },
+    { label: "Sent", value: addressInfo.sentTransactions },
+    { label: "Received", value: addressInfo.receivedTransactions },
   ];
 
   const volumeData = [
-    { label: 'Sent', value: parseFloat(addressInfo.totalSentValue) / 1e18 },
-    { label: 'Received', value: parseFloat(addressInfo.totalReceivedValue) / 1e18 },
+    { label: "Sent", value: parseFloat(addressInfo.totalSentValue) / 1e18 },
+    {
+      label: "Received",
+      value: parseFloat(addressInfo.totalReceivedValue) / 1e18,
+    },
   ];
 
   const totalTransactions = addressInfo.totalTransactions;
@@ -152,8 +197,8 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
       acc[item.label] = {
         label: item.label,
         color: COLORS[index % COLORS.length],
-      }
-      return acc
+      };
+      return acc;
     }, {} as ChartConfig),
   };
 
@@ -184,7 +229,12 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
             </CardTitle>
             <CardDescription>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{addressInfo.addressId}</span>
+                <span
+                  className="text-sm text-muted-foreground truncate max-w-[150px] md:max-w-none"
+                  title={addressInfo.addressId}
+                >
+                  {addressInfo.addressId}
+                </span>
                 <Badge variant="secondary">{addressInfo.type}</Badge>
               </div>
             </CardDescription>
@@ -195,20 +245,32 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
         <div className="grid gap-4 md:grid-cols-3 mb-6">
           <Card className="p-6 bg-background shadow-none border">
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-muted-foreground">Balance</span>
-              <span className="text-2xl font-bold">{(parseFloat(addressInfo.balance) / 1e18).toFixed(4)} ETH</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Balance
+              </span>
+              <span className="text-2xl font-bold">
+                {(parseFloat(addressInfo.balance) / 1e18).toFixed(4)} ETH
+              </span>
             </div>
           </Card>
           <Card className="p-6 bg-background shadow-none border">
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-muted-foreground">First Active</span>
-              <span className="text-2xl font-bold">{new Date(addressInfo.firstSeen).toLocaleDateString()}</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                First Active
+              </span>
+              <span className="text-2xl font-bold">
+                {new Date(addressInfo.firstSeen).toLocaleDateString()}
+              </span>
             </div>
           </Card>
           <Card className="p-6 bg-background shadow-none border">
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-muted-foreground">Last Active</span>
-              <span className="text-2xl font-bold">{new Date(addressInfo.lastSeen).toLocaleDateString()}</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Last Active
+              </span>
+              <span className="text-2xl font-bold">
+                {new Date(addressInfo.lastSeen).toLocaleDateString()}
+              </span>
             </div>
           </Card>
         </div>
@@ -216,12 +278,17 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="bg-background shadow-none border">
             <CardHeader>
-              <CardTitle className="text-base font-medium">Volume Distribution</CardTitle>
+              <CardTitle className="text-base font-medium">
+                Volume Distribution
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={volumeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <BarChart
+                    data={volumeData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
                     <XAxis dataKey="label" />
                     <YAxis />
                     <ChartTooltip
@@ -230,7 +297,9 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                           return (
                             <div className="rounded-lg border bg-background p-2 shadow-md">
                               <div className="grid grid-cols-2 gap-2">
-                                <span className="text-sm font-medium">{payload[0].name}</span>
+                                <span className="text-sm font-medium">
+                                  {payload[0].name}
+                                </span>
                                 <span className="text-sm font-medium">{`${payload[0].value} ETH`}</span>
                               </div>
                             </div>
@@ -249,10 +318,14 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
 
           <Card className="bg-background shadow-none border">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-medium">Transaction Distribution</CardTitle>
-              <Select 
-                value={pieData[activeIndex].label} 
-                onValueChange={(value) => setActiveIndex(pieData.findIndex(d => d.label === value))}
+              <CardTitle className="text-base font-medium">
+                Transaction Distribution
+              </CardTitle>
+              <Select
+                value={pieData[activeIndex].label}
+                onValueChange={(value) =>
+                  setActiveIndex(pieData.findIndex((d) => d.label === value))
+                }
               >
                 <SelectTrigger className="h-8 w-[120px]">
                   <SelectValue placeholder="Select type" />
@@ -357,22 +430,25 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
               </div>
               <div className="flex">
                 {["balance", "gas"].map((key) => {
-                  const chart = key as keyof typeof lineChartConfig
+                  const chart = key as keyof typeof lineChartConfig;
                   return (
                     <button
                       key={chart}
                       data-active={activeChart === chart}
                       className="flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l data-[active=true]:bg-muted/50 sm:border-l sm:border-t-0 sm:px-8 sm:py-6"
-                      onClick={() => setActiveChart(chart as 'balance' | 'gas')}
+                      onClick={() => setActiveChart(chart as "balance" | "gas")}
                     >
                       <span className="text-xs text-muted-foreground">
                         {lineChartConfig[chart].label}
                       </span>
                       <span className="text-lg font-bold leading-none sm:text-3xl">
-                        {chart === 'balance' ? formatValue(totals.balance) : totals.totalTransactionFee.toFixed(4)} ETH
+                        {chart === "balance"
+                          ? formatValue(totals.balance)
+                          : totals.totalTransactionFee.toFixed(4)}{" "}
+                        ETH
                       </span>
                     </button>
-                  )
+                  );
                 })}
               </div>
             </CardHeader>
@@ -382,7 +458,9 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                 className="aspect-auto h-[250px] w-full"
               >
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={activeChart === 'balance' ? balanceData : gasData}>
+                  <LineChart
+                    data={activeChart === "balance" ? balanceData : gasData}
+                  >
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis
                       dataKey="date"
@@ -391,19 +469,31 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                       tickMargin={8}
                       minTickGap={32}
                       tickFormatter={(value) => {
-                        const date = new Date(value)
+                        const date = new Date(value);
                         return date.toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
-                        })
+                        });
                       }}
                     />
-                    <YAxis tickFormatter={(value) => (value).toFixed(4)} />
+                    <YAxis tickFormatter={(value) => value.toFixed(4)} />
                     <RechartsTooltip />
-                    {activeChart === 'balance' ? (
-                      <Line type="monotone" dataKey="balance" stroke="#8884d8" strokeWidth={2} dot={false} />
+                    {activeChart === "balance" ? (
+                      <Line
+                        type="monotone"
+                        dataKey="balance"
+                        stroke="#8884d8"
+                        strokeWidth={2}
+                        dot={false}
+                      />
                     ) : (
-                      <Line type="monotone" dataKey="transactionFee" stroke="#8884d8" strokeWidth={2} dot={false} />
+                      <Line
+                        type="monotone"
+                        dataKey="transactionFee"
+                        stroke="#8884d8"
+                        strokeWidth={2}
+                        dot={false}
+                      />
                     )}
                   </LineChart>
                 </ResponsiveContainer>

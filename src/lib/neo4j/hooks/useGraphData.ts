@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { neo4jClient } from '../client';
-import { Transaction, GraphData, GraphNode, GraphLink, EtherscanTransaction, NodeDatum, LinkDatum } from '../types';
+import { GraphData, GraphNode, GraphLink, NodeDatum, LinkDatum } from '../types';
 
 export function useGraphData(address: string | null) {
   const [loading, setLoading] = useState(false);
@@ -119,7 +119,8 @@ export function useGraphData(address: string | null) {
               gas: tx.gas,
               gasPrice: tx.gasPrice,
               blockNumber: tx.blockNumber,
-              timestamp: tx.timestamp
+              timestamp: tx.timestamp,
+              gasUsed: ''
             }
           });
         }
