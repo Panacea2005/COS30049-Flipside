@@ -116,6 +116,12 @@ const NETWORKS = {
         name: "Tether USD",
       },
       {
+        symbol: "USDC",
+        address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        decimals: 6,
+        name: "USD Coin",
+      },
+      {
         symbol: "LINK",
         address: "0x779877A7B0D9E8603169DdbD7836e478b4624789",
         decimals: 18,

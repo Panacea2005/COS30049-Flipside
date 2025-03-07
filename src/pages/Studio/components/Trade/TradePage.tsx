@@ -56,7 +56,7 @@ const NETWORKS = {
   mainnet: {
     name: "Ethereum Mainnet",
     chainId: 1,
-    rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY",
+    rpcUrl: "https://mainnet.infura.io/v3/2e112d99c098448da3363be64deb8668",
     blockExplorer: "https://etherscan.io",
     nativeCurrency: {
       name: "Ether",
@@ -67,7 +67,7 @@ const NETWORKS = {
   sepolia: {
     name: "Sepolia Testnet",
     chainId: 11155111,
-    rpcUrl: "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
+    rpcUrl: "https://sepolia.infura.io/v3/2e112d99c098448da3363be64deb8668",
     blockExplorer: "https://sepolia.etherscan.io",
     nativeCurrency: {
       name: "Sepolia Ether",
@@ -127,7 +127,7 @@ const POPULAR_TOKENS = {
     {
       symbol: "TEST UNI",
       address: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
-      decimals: 6,
+      decimals: 18,
       name: "Test Uniswap",
       logoURI: "/uni.svg",
     },
@@ -1071,7 +1071,7 @@ export default function EnhancedTradePage() {
                           className="flex items-center gap-2"
                         >
                           <img
-                            src={tokenInfo.logoURI}
+                            src={getTokenIcon(tokenInfo.address)}
                             alt={tokenInfo.symbol}
                             className="w-5 h-5"
                           />

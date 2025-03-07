@@ -1,9 +1,3 @@
-export interface WalletNode {
-  addressId: string;
-  type: 'eoa' | 'contract';
-  firstSeen: string;
-  lastSeen: string;
-}
 export interface Transaction {
   // Core transaction properties
   hash: string;
@@ -14,6 +8,9 @@ export interface Transaction {
   gasUsed: string | number;
   gasPrice: string | number;
   blockNumber: number | string;
+  
+  // Adding input data field
+  input: string;
   
   // Timestamp handling (supporting both formats)
   timestamp: string;
@@ -28,6 +25,14 @@ export interface Transaction {
   
   // Optional nonce field used in the component
   nonce?: number | string;
+}
+
+// The rest of the file remains unchanged
+export interface WalletNode {
+  addressId: string;
+  type: 'eoa' | 'contract';
+  firstSeen: string;
+  lastSeen: string;
 }
 
 export interface GraphData {
@@ -72,6 +77,7 @@ export interface EtherscanTransaction {
   gasUsed?: string;
   isError?: string;
   txreceipt_status?: string;
+  input?: string;
 }
 
 export interface AddressInfo {

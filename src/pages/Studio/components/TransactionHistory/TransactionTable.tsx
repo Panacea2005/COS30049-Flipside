@@ -19,9 +19,12 @@ import {
   User, 
   ArrowUpDown,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Search,
+  X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -53,6 +56,10 @@ export const TransactionTable = ({ transactions, onTransactionClick }: Transacti
     }
   };
 
+  const clearFilter = () => {
+    setAddressFilter('');
+  };
+
   const sortedTransactions = [...transactions]
     .filter(tx => {
       if (!addressFilter) return true;
@@ -80,133 +87,172 @@ export const TransactionTable = ({ transactions, onTransactionClick }: Transacti
     });
 
   const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;
+    if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
     return sortDirection === 'asc' ? 
-      <ChevronUp className="ml-2 h-4 w-4" /> : 
-      <ChevronDown className="ml-2 h-4 w-4" />;
+      <ChevronUp className="ml-2 h-4 w-4 text-indigo-600" /> : 
+      <ChevronDown className="ml-2 h-4 w-4 text-indigo-600" />;
   };
 
   return (
     <div className="space-y-2">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border-b border-gray-100 gap-4">
+        <div className="relative w-full sm:w-auto">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Filter by address..."
             value={addressFilter}
             onChange={(e) => setAddressFilter(e.target.value)}
-            className="max-w-xs"
+            className="pl-10 pr-10 py-2 bg-gray-50 border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-full sm:w-64"
           />
+          {addressFilter && (
+            <button 
+              onClick={clearFilter}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-700"
+              aria-label="Clear filter"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              <ArrowDownUp className="mr-2 h-4 w-4" />
-              Sort
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Sort Transactions</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => handleSort('timestamp')}>
-                <CalendarDays className="mr-2 h-4 w-4" />
-                Time
-                {getSortIcon('timestamp')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort('value')}>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Value
-                {getSortIcon('value')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort('blockNumber')}>
-                <Hash className="mr-2 h-4 w-4" />
-                Block Number
-                {getSortIcon('blockNumber')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort('fromAddress')}>
-                <User className="mr-2 h-4 w-4" />
-                From Address
-                {getSortIcon('fromAddress')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort('toAddress')}>
-                <User className="mr-2 h-4 w-4" />
-                To Address
-                {getSortIcon('toAddress')}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          {sortField && (
+            <Badge variant="outline" className="bg-gray-50 text-gray-700 gap-1 flex items-center px-3 py-1 border">
+              <span>Sorted by: <span className="font-semibold capitalize">{sortField}</span></span>
+              <span className="text-xs text-gray-500">({sortDirection === 'asc' ? 'ascending' : 'descending'})</span>
+            </Badge>
+          )}
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-gray-200 bg-white text-gray-700 hover:bg-gray-50">
+                <ArrowDownUp className="mr-2 h-4 w-4" />
+                Sort
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 border border-gray-200 shadow-lg rounded-md">
+              <DropdownMenuLabel className="text-gray-800">Sort Transactions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => handleSort('timestamp')} className="cursor-pointer">
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                  <span className="flex-1">Time</span>
+                  {getSortIcon('timestamp')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSort('value')} className="cursor-pointer">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <span className="flex-1">Value</span>
+                  {getSortIcon('value')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSort('blockNumber')} className="cursor-pointer">
+                  <Hash className="mr-2 h-4 w-4" />
+                  <span className="flex-1">Block Number</span>
+                  {getSortIcon('blockNumber')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSort('fromAddress')} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span className="flex-1">From Address</span>
+                  {getSortIcon('fromAddress')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSort('toAddress')} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span className="flex-1">To Address</span>
+                  {getSortIcon('toAddress')}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       
       <div className="overflow-x-auto">
-        <Table className="min-w-full divide-y divide-gray-200">
+        <Table className="w-full">
           <TableHeader className="bg-gray-50">
             <TableRow>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Hash
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 From
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 To
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Value (ETH)
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Time
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Block Number
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Block
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Gas
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Gas Used
               </TableHead>
-              <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Gas Price
               </TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="bg-white divide-y divide-gray-200">
-            {sortedTransactions.map((tx) => (
-              <TableRow
-                key={tx.hash}
-                onClick={() => onTransactionClick(tx.hash)}
-                className="hover:bg-gray-50 cursor-pointer"
-              >
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm font-medium text-violet-600">
-                  {formatHash(tx.hash)}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatAddress(tx.fromAddress)}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatAddress(tx.toAddress)}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatValue(tx.value)}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(tx.timestamp).toLocaleString()}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {tx.blockNumber}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatValue(tx.gas.toString())}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatValue(tx.gasUsed.toString())}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatValue(tx.gasPrice.toString())}
+          <TableBody>
+            {sortedTransactions.length > 0 ? (
+              sortedTransactions.map((tx, index) => (
+                <TableRow
+                  key={tx.hash}
+                  onClick={() => onTransactionClick(tx.hash)}
+                  className={`hover:bg-indigo-50 transition-colors cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                >
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                    {formatHash(tx.hash)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">
+                    {formatAddress(tx.fromAddress)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">
+                    {formatAddress(tx.toAddress)}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm">
+                    <Badge variant="outline" className={`bg-gray-50 px-2 py-1 ${Number(tx.value) > 0 ? 'text-green-700' : 'text-gray-700'}`}>
+                      {formatValue(tx.value)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {new Date(tx.timestamp).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {tx.blockNumber}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {formatValue(tx.gas.toString())}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {formatValue(tx.gasUsed.toString())}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {formatValue(tx.gasPrice.toString())}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={9} className="px-6 py-12 text-center text-gray-500 italic">
+                  {addressFilter ? (
+                    <div>
+                      <p className="mb-2">No transactions match your filter.</p>
+                      <Button variant="outline" onClick={clearFilter} size="sm" className="text-indigo-600 hover:text-indigo-800">
+                        Clear filter
+                      </Button>
+                    </div>
+                  ) : (
+                    'No transactions found'
+                  )}
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>

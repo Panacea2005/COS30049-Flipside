@@ -347,7 +347,7 @@ export const CryptoBubbles: React.FC<CryptoBubblesProps> = ({ onBubbleClick }) =
       
       <div 
         ref={containerRef}
-        className="relative w-full h-96 bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg overflow-hidden"
+        className="relative w-full h-[600px] bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg overflow-hidden"
       >
         {loading ? (
           <div className="flex items-center justify-center h-full">

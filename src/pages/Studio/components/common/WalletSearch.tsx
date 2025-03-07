@@ -158,7 +158,7 @@ export const WalletSearch = ({
                 </>
               ) : (
                 <>
-                  <Database className="h-4 w-4" /> Using Database
+                  <Database className="h-4 w-4" /> Using Neo4j DB
                 </>
               )}
             </Label>

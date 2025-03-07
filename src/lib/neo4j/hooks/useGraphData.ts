@@ -160,7 +160,8 @@ export function useGraphData(initialAddress: string | null) {
               gasPrice: tx.gasPrice,
               blockNumber: tx.blockNumber,
               timestamp: tx.timestamp,
-              gasUsed: tx.gasUsed || '0'
+              gasUsed: tx.gasUsed || '0',
+              input: tx.input || '0x'
             }
           });
         }

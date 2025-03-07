@@ -131,6 +131,7 @@ class Neo4jClient {
             gas: getNumberValue(tx.gas),
             gasUsed: getNumberValue(tx.gas_used),
             gasPrice: getNumberValue(tx.gas_price),
+            input: tx.input || '0x', // Add input field with default value
           };
         });
       });
@@ -139,6 +140,25 @@ class Neo4jClient {
       return [];
     }
   }  
+
+  async getTransactionsByTimeRange() {
+    const query = `
+      MATCH (from:nodes)-[p:transaction]->(to:nodes)
+      WITH date(datetime({epochMillis: p.block_timestamp * 1000})) AS date, count(p) AS totalTransactions
+      RETURN date.year AS year, date.month AS month, sum(totalTransactions) AS totalTransactions
+      ORDER BY year ASC, month ASC
+    `;
+
+    return this.withSession(async (session) => {
+      const result = await session.run(query);
+
+      return result.records.map((record) => ({
+        year: record.get("year").toString(),
+        month: record.get("month").toString(),
+        totalTransactions: record.get("totalTransactions").toNumber(),
+      }));
+    });
+  }
 
   async getAddressTypes() {
     const query = `
@@ -192,25 +212,6 @@ class Neo4jClient {
         year: record.get("year").toString(),
         month: record.get("month").toString(),
         totalVolume: record.get("totalVolume").toString(),
-      }));
-    });
-  }
-
-  async getTransactionsByTimeRange() {
-    const query = `
-      MATCH (from:nodes)-[p:transaction]->(to:nodes)
-      WITH date(datetime({epochMillis: p.block_timestamp * 1000})) AS date, count(p) AS totalTransactions
-      RETURN date.year AS year, date.month AS month, sum(totalTransactions) AS totalTransactions
-      ORDER BY year ASC, month ASC
-    `;
-
-    return this.withSession(async (session) => {
-      const result = await session.run(query);
-
-      return result.records.map((record) => ({
-        year: record.get("year").toString(),
-        month: record.get("month").toString(),
-        totalTransactions: record.get("totalTransactions").toNumber(),
       }));
     });
   }
@@ -280,7 +281,10 @@ class Neo4jClient {
     const query = `
       MATCH (from:nodes)-[p:transaction]->(to:nodes)
       WHERE from.addressId = $address OR to.addressId = $address
-      RETURN p.hash AS hash, from.addressId AS fromAddress, to.addressId AS toAddress, p.value AS value, p.block_timestamp AS timestamp, p.block_number AS blockNumber, p.gas AS gas, p.gas_used AS gasUsed, p.gas_price AS gasPrice
+      RETURN p.hash AS hash, from.addressId AS fromAddress, to.addressId AS toAddress, 
+             p.value AS value, p.block_timestamp AS timestamp, p.block_number AS blockNumber, 
+             p.gas AS gas, p.gas_used AS gasUsed, p.gas_price AS gasPrice, 
+             p.input AS input
       ORDER BY p.block_timestamp DESC
     `;
 
@@ -300,6 +304,7 @@ class Neo4jClient {
           gas: record.get("gas").toNumber(),
           gasUsed: record.get("gasUsed").toNumber(),
           gasPrice: record.get("gasPrice").toNumber(),
+          input: record.get("input") || '0x', // Add input field with default value
         };
       });
     });
