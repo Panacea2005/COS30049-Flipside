@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { User } from 'lucide-react';
+import { User, Wallet } from 'lucide-react';
 
 const links = [
   { to: '/settings/profile', label: 'Profile', icon: User },
+  { to: '/settings/addresses', label: 'Wallet Addresses', icon: Wallet },
 ];
 
 export const SettingsSidebar = () => {

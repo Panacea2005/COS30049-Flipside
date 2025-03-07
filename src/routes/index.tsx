@@ -12,6 +12,7 @@ import { AboutPage } from '../pages/About/AboutPage';
 import { RootLayout } from '../layouts/RootLayout';
 import { SettingsPage } from '../pages/Settings/SettingsPage';
 import { ProfileSettings } from '../components/settings/ProfileSettings';
+import { AddressSettings } from '@/components/settings/AddressSettings';
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: 'about', element: <AboutPage /> },
       { path: 'settings', element: <SettingsPage />, children: [
         { path: 'profile', element: <ProfileSettings /> },
+        { path: 'addresses', element: <AddressSettings /> },
       ]},
     ],
   },

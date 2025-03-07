@@ -58,6 +58,7 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
   const [dataSource, setDataSource] = useState<"database" | "etherscan">(
     "database"
   );
+  const [dateRange, setDateRange] = useState<{firstDate: string, lastDate: string} | null>(null);
 
   const [totals, setTotals] = useState({
     balance: 0,
@@ -110,6 +111,7 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
       const result = await neo4jClient.getBalanceOverTime(address);
       console.log("Fetched Balance Data:", result);
       setBalanceData(result);
+      updateDateRange(result, gasData);
     } catch (err) {
       console.error("Error fetching balance data:", err);
     }
@@ -120,6 +122,7 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
       const gasData = await neo4jClient.getGasDataOverTime(address);
       console.log("Fetched Gas Data:", gasData);
       setGasData(gasData);
+      updateDateRange(balanceData, gasData);
       setTotals((prevTotals) => ({
         ...prevTotals,
         totalTransactionFee: gasData.reduce(
@@ -130,6 +133,28 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
     } catch (err) {
       console.error("Error fetching gas data:", err);
     }
+  };
+
+  // Calculate the date range from both datasets
+  const updateDateRange = (balanceData: BalanceData[], gasData: GasData[]) => {
+    if (!balanceData.length && !gasData.length) return;
+    
+    // Combine dates from both datasets
+    const allDates: string[] = [
+      ...balanceData.map(item => item.date),
+      ...gasData.map(item => item.date)
+    ].filter(Boolean);
+    
+    if (allDates.length === 0) return;
+    
+    // Convert to Date objects for comparison
+    const dateDates = allDates.map(date => new Date(date));
+    
+    // Find min and max dates
+    const firstDate = new Date(Math.min(...dateDates.map(d => d.getTime()))).toISOString();
+    const lastDate = new Date(Math.max(...dateDates.map(d => d.getTime()))).toISOString();
+    
+    setDateRange({ firstDate, lastDate });
   };
 
   useEffect(() => {
@@ -216,7 +241,45 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
     },
   } satisfies ChartConfig;
 
-  const formatValue = (value: number | undefined) => (value ?? 0).toFixed(4);
+  // Format value based on size - use scientific notation for very small values
+  const formatValue = (value: number | undefined) => {
+    if (value === undefined) return "0.0000";
+    
+    if (value === 0) return "0.0000";
+    
+    // If value is very small (less than 0.0001), use scientific notation
+    if (value < 0.0001) {
+      return value.toExponential(4);
+    }
+    
+    return value.toFixed(4);
+  };
+  
+  // Get the appropriate domain for the Y axis based on the active chart
+  const getYAxisDomain = () => {
+    if (activeChart === "balance") {
+      return undefined; // Use default auto-scaling for balance
+    } else {
+      // For gas data, find the max value to set appropriate scale
+      const maxGasFee = Math.max(...gasData.map(d => d.transactionFee), 0.000001);
+      return [0, maxGasFee * 1.1]; // Add 10% padding at the top
+    }
+  };
+
+  // Get the current dataset based on active chart
+  const getCurrentData = () => {
+    return activeChart === "balance" ? balanceData : gasData;
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+  };
 
   return (
     <Card className="bg-background">
@@ -426,6 +489,11 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                 <CardTitle>Historical Data</CardTitle>
                 <CardDescription>
                   Balance and transaction fee over time
+                  {dateRange && (
+                    <span className="block text-xs mt-1">
+                      {formatDate(dateRange.firstDate)} - {formatDate(dateRange.lastDate)}
+                    </span>
+                  )}
                 </CardDescription>
               </div>
               <div className="flex">
@@ -444,7 +512,7 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                       <span className="text-lg font-bold leading-none sm:text-3xl">
                         {chart === "balance"
                           ? formatValue(totals.balance)
-                          : totals.totalTransactionFee.toFixed(4)}{" "}
+                          : formatValue(totals.totalTransactionFee)}{" "}
                         ETH
                       </span>
                     </button>
@@ -459,7 +527,8 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
               >
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart
-                    data={activeChart === "balance" ? balanceData : gasData}
+                    data={getCurrentData()}
+                    margin={{ top: 10, right: 30, left: 10, bottom: 20 }}
                   >
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis
@@ -467,7 +536,10 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                       tickLine={false}
                       axisLine={false}
                       tickMargin={8}
-                      minTickGap={32}
+                      // Show all data points with appropriate label spacing
+                      interval="preserveStartEnd"
+                      // Include the start and end dates explicitly
+                      domain={dateRange ? [dateRange.firstDate, dateRange.lastDate] : ['auto', 'auto']}
                       tickFormatter={(value) => {
                         const date = new Date(value);
                         return date.toLocaleDateString("en-US", {
@@ -475,16 +547,37 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                           day: "numeric",
                         });
                       }}
+                      // Ensure labels don't overlap
+                      allowDataOverflow={true}
                     />
-                    <YAxis tickFormatter={(value) => value.toFixed(4)} />
-                    <RechartsTooltip />
+                    <YAxis 
+                      domain={getYAxisDomain()}
+                      tickFormatter={(value) => {
+                        if (activeChart === "gas" && value < 0.0001) {
+                          return value.toExponential(2);
+                        }
+                        return value.toFixed(4);
+                      }} 
+                    />
+                    <RechartsTooltip
+                      formatter={(value, name, props) => {
+                        return [
+                          `${formatValue(value as number)} ETH`, 
+                          activeChart === "balance" ? "Balance" : "Transaction Fee"
+                        ];
+                      }}
+                      labelFormatter={(label) => {
+                        return formatDate(label as string);
+                      }}
+                    />
                     {activeChart === "balance" ? (
                       <Line
                         type="monotone"
                         dataKey="balance"
                         stroke="#8884d8"
                         strokeWidth={2}
-                        dot={false}
+                        dot={true}
+                        activeDot={{ r: 6 }}
                       />
                     ) : (
                       <Line
@@ -492,7 +585,8 @@ export const AddressInfoSection = ({ address }: AddressInfoSectionProps) => {
                         dataKey="transactionFee"
                         stroke="#8884d8"
                         strokeWidth={2}
-                        dot={false}
+                        dot={true}
+                        activeDot={{ r: 6 }}
                       />
                     )}
                   </LineChart>

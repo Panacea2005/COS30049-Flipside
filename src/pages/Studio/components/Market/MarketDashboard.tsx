@@ -26,6 +26,7 @@ import {
   BarChart3,
   Database,
 } from "lucide-react";
+import { CryptoBubbles } from "./CryptoBubbles";
 
 interface PriceData {
   time: number;
@@ -54,6 +55,12 @@ interface GlobalMarketData {
   active_cryptocurrencies: number;
   markets: number;
   total_volume: { usd: number };
+}
+
+interface CryptoBubble extends LeaderboardCoin {
+  x: number;
+  y: number;
+  size: number;
 }
 
 interface CoinOption {
@@ -236,6 +243,24 @@ export const MarketDashboard: React.FC = () => {
   const topPopular = [...leaderboardData]
     .sort((a, b) => (b.total_volume || 0) - (a.total_volume || 0))
     .slice(0, 3);
+
+  const handleBubbleClick = (bubble: CryptoBubble) => {
+    // Convert bubble to LeaderboardCoin format
+    const coinData: LeaderboardCoin = {
+      id: bubble.id,
+      symbol: bubble.symbol,
+      name: bubble.name,
+      current_price: bubble.current_price,
+      market_cap: bubble.market_cap,
+      image: bubble.image,
+      price_change_percentage_24h: bubble.price_change_percentage_24h,
+      total_volume: bubble.total_volume,
+      circulating_supply: bubble.circulating_supply,
+      last_updated: bubble.last_updated,
+    };
+
+    setSelectedLeaderboardCoin(coinData);
+  };
 
   return (
     <div className="p-6 space-y-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -592,6 +617,8 @@ export const MarketDashboard: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      <CryptoBubbles onBubbleClick={handleBubbleClick} />
 
       {/* Modal for Leaderboard Coin Details */}
       {selectedLeaderboardCoin && (
