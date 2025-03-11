@@ -5,32 +5,35 @@ import { AddressTypesChart } from "./AddressTypesChart";
 
 export const OverviewPage = () => {
   return (
-    <div className="space-y-6">
-      {" "}
-      {/* Increased spacing between sections */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-pink-600">
-          Transaction Dashboard
-        </h1>
-      </div>
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        {" "}
-        {/* Increased padding */}
-        <CombinedChart />
-      </div>
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        {" "}
-        {/* Increased padding */}
-        <BiggestTransactionsChart />
-      </div>
-      <div className="bg-white p-8 rounded-lg shadow-md flex flex-col lg:flex-row gap-4">
-        {" "}
-        {/* Increased padding and added flex layout */}
-        <div className="flex-1 min-w-[300px]">
-          <DistributionChart />
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <h1 className="text-3xl font-semibold leading-tight tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-pink-600">
+        Transaction Dashboard
+      </h1>
+      
+      {/* Bento Grid Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Main Featured Chart - Spans 2 columns */}
+        <div className="bg-white p-6 rounded-xl shadow-sm md:col-span-2 border border-gray-100">
+          <h2 className="text-lg font-medium mb-4 text-gray-800">Transaction Overview</h2>
+          <CombinedChart />
         </div>
-        <div className="flex-1 min-w-[300px]">
+        
+        {/* Address Types - 1 column */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-medium mb-4 text-gray-800">Address Types</h2>
           <AddressTypesChart />
+        </div>
+        
+        {/* Biggest Transactions - Spans full width on larger screens */}
+        <div className="bg-white p-6 rounded-xl shadow-sm lg:col-span-2 border border-gray-100">
+          <h2 className="text-lg font-medium mb-4 text-gray-800">Biggest Transactions</h2>
+          <BiggestTransactionsChart />
+        </div>
+        
+        {/* Distribution Chart */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h2 className="text-lg font-medium mb-4 text-gray-800">Distribution</h2>
+          <DistributionChart />
         </div>
       </div>
     </div>

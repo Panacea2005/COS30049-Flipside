@@ -7,6 +7,7 @@ export const AudienceLinks = () => {
         <NavLink href="/for-chains">For Chains</NavLink>
         <NavLink href="/for-analysts">For Analysts</NavLink>
         <NavLink href="/for-explorers">For Explorers</NavLink>
+        <NavLink href="/about">About</NavLink>
       </div>
     </div>
   );

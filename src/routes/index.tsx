@@ -13,6 +13,7 @@ import { RootLayout } from '../layouts/RootLayout';
 import { SettingsPage } from '../pages/Settings/SettingsPage';
 import { ProfileSettings } from '../components/settings/ProfileSettings';
 import { AddressSettings } from '@/components/settings/AddressSettings';
+import NFTMarketplace from '@/pages/NFTs/NFTMarketPlace';
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: 'flide', element: <FlidePage /> },
       { path: 'studio', element: <StudioPage /> },
       { path: 'exchange', element: <CryptoExchangePage /> },
+      { path: 'nfts', element: <NFTMarketplace /> },
       { path: 'for-chains', element: <ForChainsPage /> },
       { path: 'for-analysts', element: <ForAnalystsPage /> },
       { path: 'for-explorers', element: <ForExplorersPage /> },

@@ -7,7 +7,7 @@ export const NavLinks = () => {
         <NavLink href="/flide">Flide</NavLink>
         <NavLink href="/studio">Studio</NavLink>
         <NavLink href="/exchange">Exchange</NavLink>
-        <NavLink href="/about">About</NavLink>
+        <NavLink href="/nfts">NFTs</NavLink>
       </div>
     </div>
   );

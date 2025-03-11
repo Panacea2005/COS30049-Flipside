@@ -47,8 +47,7 @@ const UNISWAP_ROUTER_ABI = [
 // Define your custom swap contract address (update this with your deployed address)
 const CUSTOM_SWAP_ADDRESS = "0x3b0eb889996c27d11218baf0e918e4c63699fcda";
 
-// Define the ABI for your custom swap contract. We assume it has a function:
-// swapCustomTokens(address fromToken, address toToken, uint256 amountIn, uint256 minAmountOut)
+// Define the ABI
 // Update the CUSTOM_SWAP_ABI to match the new contract
 const CUSTOM_SWAP_ABI = [
   "function deposit(address token, uint256 amount) external",
@@ -195,7 +194,11 @@ const CryptoExchangePage = () => {
       const depositTx = await customSwapContract.deposit(tokenAddress, amount);
       await depositTx.wait();
 
-      alert("Successfully deposited tokens to CustomSwap contract!");
+      if (selectedDepositToken) {
+        showSuccessNotification(
+          `Successfully deposited ${depositAmount} ${selectedDepositToken.symbol} to CustomSwap contract!`
+        );
+      }
     } catch (error: any) {
       console.error("Deposit failed:", error);
       setError(error.message || "Failed to deposit tokens");
@@ -493,7 +496,9 @@ const CryptoExchangePage = () => {
 
         setFromAmount("");
         setToAmount("");
-        alert("Custom token swap successful!");
+        showSuccessNotification(
+          `Custom token swap successful! Swapped ${fromAmount} ${fromToken.symbol} for ${toAmount} ${toToken.symbol}`
+        );
         return;
       }
 
@@ -565,7 +570,9 @@ const CryptoExchangePage = () => {
       setFromAmount("");
       setToAmount("");
       setError("");
-      alert("Swap successful!");
+      showSuccessNotification(
+        `Swap successful! Swapped ${fromAmount} ${fromToken.symbol} for ${toAmount} ${toToken.symbol}`
+      );
     } catch (error: any) {
       console.error("Swap failed:", error);
       setError(error.message || "Swap failed");
@@ -614,16 +621,16 @@ const CryptoExchangePage = () => {
 
   // Token display components
   const TokenOption = ({ token }: { token: Token }) => (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 py-1">
       <div className="relative w-6 h-6">
         <img
           src={getTokenIcon(token)}
           alt={token.symbol}
-          className="w-6 h-6 rounded-full"
+          className="w-6 h-6 rounded-full shadow-sm"
         />
         {token.custom && (
           <div
-            className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white"
+            className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white shadow-sm"
             title="Custom Token"
           />
         )}
@@ -631,7 +638,9 @@ const CryptoExchangePage = () => {
       <span className="flex items-center gap-1">
         {token.symbol}
         {token.custom && (
-          <span className="text-xs text-gray-400">(Custom)</span>
+          <span className="text-xs text-gray-400 bg-blue-50 px-1 rounded">
+            (Custom)
+          </span>
         )}
       </span>
     </div>
@@ -643,33 +652,68 @@ const CryptoExchangePage = () => {
         <img
           src={getTokenIcon(token)}
           alt={token.symbol}
-          className="w-6 h-6 rounded-full"
+          className="w-6 h-6 rounded-full shadow-sm"
         />
         {token.custom && (
           <div
-            className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white"
+            className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white shadow-sm"
             title="Custom Token"
           />
         )}
       </div>
-      <span>{token.symbol}</span>
+      <span className="font-medium">{token.symbol}</span>
     </div>
   );
+
+  // Add this function around line 493
+  const showSuccessNotification = (message: string) => {
+    // Create a div for the notification
+    const notification = document.createElement("div");
+    notification.className =
+      "fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg transition-all duration-500 transform translate-x-full";
+    notification.style.zIndex = "9999";
+    notification.innerHTML = `
+    <div class="flex">
+      <div class="py-1"><svg class="fill-current h-6 w-6 text-green-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm12.73-1.41A8 8 0 1 0 4.34 4.34a8 8 0 0 0 10.32 10.32zM6.7 9.29L9 11.6l4.3-4.3 1.4 1.42L9 14.4l-3.7-3.7 1.4-1.42z"/></svg></div>
+      <div>
+        <p class="font-bold">Success!</p>
+        <p class="text-sm">${message}</p>
+      </div>
+    </div>
+  `;
+
+    // Append to body
+    document.body.appendChild(notification);
+
+    // Animate in
+    setTimeout(() => {
+      notification.style.transform = "translate-x-0";
+    }, 10);
+
+    // Remove after 5 seconds
+    setTimeout(() => {
+      notification.style.transform = "translate-x-full";
+      setTimeout(() => {
+        document.body.removeChild(notification);
+      }, 500);
+    }, 5000);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto mt-12 sm:mt-16 px-4">
-        <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
-          <CardHeader className="space-y-4 sm:space-y-6 pb-4 sm:pb-8">
+        <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm overflow-hidden rounded-2xl">
+          <CardHeader className="space-y-4 sm:space-y-6 pb-4 sm:pb-8 bg-gradient-to-r from-purple-100 to-pink-100">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-              <CardTitle className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <CardTitle className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center">
+                <Coins className="h-8 w-8 mr-2 text-purple-500" />
                 Crypto Exchange
               </CardTitle>
               {connected ? (
                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 mt-4 sm:mt-0">
                   <Badge
                     variant="outline"
-                    className="py-1 sm:py-2 px-2 sm:px-4"
+                    className="py-1 sm:py-2 px-2 sm:px-4 bg-white"
                   >
                     <div className="flex items-center gap-1 sm:gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -680,7 +724,7 @@ const CryptoExchangePage = () => {
                   </Badge>
                   <Button
                     variant="outline"
-                    className="group relative overflow-hidden border-2 hover:border-purple-500 transition-colors duration-300"
+                    className="group relative overflow-hidden border-2 hover:border-purple-500 transition-colors duration-300 bg-white"
                     onClick={() =>
                       window.open(
                         `https://etherscan.io/address/${userAddress}`,
@@ -701,7 +745,7 @@ const CryptoExchangePage = () => {
               ) : (
                 <Button
                   onClick={connectWallet}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 rounded-full px-6"
                 >
                   <Wallet className="mr-2 h-5 w-5" />
                   Connect Wallet
@@ -710,37 +754,43 @@ const CryptoExchangePage = () => {
             </div>
 
             <Tabs defaultValue="sepolia" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 p-1 bg-gray-100 rounded-lg">
+              <TabsList className="grid w-full grid-cols-2 p-1 bg-gray-100/80 rounded-lg">
                 <TabsTrigger
                   value="mainnet"
                   onClick={() => switchNetwork(NETWORKS.MAINNET)}
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 rounded-md"
                 >
                   Mainnet
                 </TabsTrigger>
                 <TabsTrigger
                   value="sepolia"
                   onClick={() => switchNetwork(NETWORKS.SEPOLIA)}
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300"
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 rounded-md"
                 >
                   Sepolia
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
-
           <CardContent className="space-y-4 sm:space-y-8 p-4 sm:p-8">
             {error && (
-              <Alert variant="destructive" className="border-red-200 bg-red-50">
+              <Alert
+                variant="destructive"
+                className="border-red-200 bg-red-50 animate-pulse"
+              >
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="font-medium">
+                  {error}
+                </AlertDescription>
               </Alert>
             )}
-
-            <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl shadow-inner">
+            <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 sm:p-8 rounded-xl shadow-inner">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  From
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  <span>From</span>
+                  <span className="ml-auto text-xs text-gray-500">
+                    Available: {/* Add balance display here */}
+                  </span>
                 </label>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Select
@@ -753,7 +803,7 @@ const CryptoExchangePage = () => {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full sm:w-[160px] bg-white">
+                    <SelectTrigger className="w-full sm:w-[160px] bg-white rounded-xl">
                       <SelectValue placeholder="Select token">
                         {fromToken && <TokenDisplay token={fromToken} />}
                       </SelectValue>
@@ -775,14 +825,14 @@ const CryptoExchangePage = () => {
                     placeholder="0.0"
                     value={fromAmount}
                     onChange={(e) => setFromAmount(e.target.value)}
-                    className="flex-1 bg-white border-2 focus:border-purple-500 transition-colors duration-300"
+                    className="flex-1 bg-white border-2 focus:border-purple-500 transition-colors duration-300 rounded-xl"
                     min="0"
                     step="0.000000000000000001"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-center">
+              <div className="flex justify-center my-2">
                 <Button
                   variant="outline"
                   size="icon"
@@ -793,15 +843,20 @@ const CryptoExchangePage = () => {
                     setFromAmount("");
                     setToAmount("");
                   }}
-                  className="rounded-full w-12 h-12 border-2 hover:border-purple-500 hover:bg-purple-50 transition-all duration-300"
+                  className="rounded-full w-12 h-12 border-2 hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 bg-white shadow-md"
                   disabled={!fromToken || !toToken}
                 >
-                  <ArrowDownUp className="h-6 w-6" />
+                  <ArrowDownUp className="h-6 w-6 text-purple-500" />
                 </Button>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">To</label>
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  <span>To</span>
+                  <span className="ml-auto text-xs text-gray-500">
+                    Available: {/* Add balance display here */}
+                  </span>
+                </label>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Select
                     value={toToken?.symbol}
@@ -813,7 +868,7 @@ const CryptoExchangePage = () => {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full sm:w-[160px] bg-white">
+                    <SelectTrigger className="w-full sm:w-[160px] bg-white rounded-xl">
                       <SelectValue placeholder="Select token">
                         {toToken && <TokenDisplay token={toToken} />}
                       </SelectValue>
@@ -835,172 +890,201 @@ const CryptoExchangePage = () => {
                     placeholder="0.0"
                     value={toAmount}
                     readOnly
-                    className="flex-1 bg-gray-50 border-2"
+                    className="flex-1 bg-gray-50 border-2 rounded-xl"
                   />
                 </div>
               </div>
             </div>
 
             <Button
-              className="w-full h-12 text-lg font-medium bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-300 hover:shadow-lg"
+              className="w-full h-14 text-lg font-medium bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-300 hover:shadow-lg rounded-xl shadow-md"
               onClick={handleSwap}
               disabled={
                 !connected || !fromAmount || loading || !fromToken || !toToken
               }
             >
-              {!connected
-                ? "Connect Wallet to Swap"
-                : loading
-                ? "Swapping..."
-                : "Swap"}
+              {!connected ? (
+                "Connect Wallet to Swap"
+              ) : loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                  Swapping...
+                </div>
+              ) : (
+                "Swap"
+              )}
             </Button>
-
             {fromToken && toToken && fromAmount && toAmount && (
-              <div className="text-sm text-gray-600 text-center bg-gray-50 p-2 sm:p-3 rounded-lg">
+              <div className="text-sm text-gray-600 text-center bg-gradient-to-r from-purple-50 to-pink-50 p-3 sm:p-4 rounded-xl shadow-inner">
                 <span className="font-medium">Rate:</span> 1 {fromToken.symbol}{" "}
-                = {(Number(toAmount) / Number(fromAmount)).toFixed(6)}{" "}
+                ={" "}
+                <span className="text-purple-600 font-semibold">
+                  {(Number(toAmount) / Number(fromAmount)).toFixed(6)}
+                </span>{" "}
                 {toToken.symbol}
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl">
-                <div className="flex flex-col sm:flex-row items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-700">
-                    Fund Contract
-                  </h3>
-                  <Badge variant="outline" className="bg-purple-50">
-                    Custom Tokens Only
-                  </Badge>
-                </div>
+            <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-md">
+              <div className="flex flex-col sm:flex-row items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-700 flex items-center">
+                  <Coins className="h-5 w-5 mr-2 text-purple-500" />
+                  Fund Contract
+                </h3>
+                <Badge variant="outline" className="bg-purple-100">
+                  Custom Tokens Only
+                </Badge>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Select
-                    value={selectedDepositToken?.symbol}
-                    onValueChange={(value) => {
-                      const token = tokens.find((t) => t.symbol === value);
-                      setSelectedDepositToken(token || null);
-                    }}
-                  >
-                    <SelectTrigger className="w-full bg-white">
-                      <SelectValue placeholder="Select token">
-                        {selectedDepositToken && (
-                          <TokenDisplay token={selectedDepositToken} />
-                        )}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tokens
-                        .filter((t) => t.custom)
-                        .map((token) => (
-                          <SelectItem key={token.symbol} value={token.symbol}>
-                            <TokenOption token={token} />
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Select
+                  value={selectedDepositToken?.symbol}
+                  onValueChange={(value) => {
+                    const token = tokens.find((t) => t.symbol === value);
+                    setSelectedDepositToken(token || null);
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-white rounded-xl">
+                    <SelectValue placeholder="Select token">
+                      {selectedDepositToken && (
+                        <TokenDisplay token={selectedDepositToken} />
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tokens
+                      .filter((t) => t.custom)
+                      .map((token) => (
+                        <SelectItem key={token.symbol} value={token.symbol}>
+                          <TokenOption token={token} />
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
 
+                <Input
+                  type="number"
+                  placeholder="Amount to deposit"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="w-full bg-white rounded-xl"
+                />
+
+                <Button
+                  onClick={async () => {
+                    if (!selectedDepositToken || !depositAmount) return;
+                    const amount = ethers.parseUnits(
+                      depositAmount,
+                      selectedDepositToken.decimals
+                    );
+                    await depositToContract(
+                      selectedDepositToken.address,
+                      amount
+                    );
+                    setDepositAmount("");
+                  }}
+                  disabled={!selectedDepositToken || !depositAmount || loading}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl"
+                >
+                  <Coins className="mr-2 h-4 w-4" />
+                  Deposit
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-md">
+                <h3 className="font-semibold text-gray-700 flex items-center">
+                  <span className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center mr-2">
+                    +
+                  </span>
+                  Add Custom Token
+                </h3>
+                <div className="flex gap-3">
                   <Input
-                    type="number"
-                    placeholder="Amount to deposit"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    className="w-full bg-white"
+                    type="text"
+                    placeholder="Token contract address"
+                    value={customTokenAddress}
+                    onChange={(e) => setCustomTokenAddress(e.target.value)}
+                    className="flex-1 bg-white rounded-xl"
                   />
-
                   <Button
                     onClick={async () => {
-                      if (!selectedDepositToken || !depositAmount) return;
-                      const amount = ethers.parseUnits(
-                        depositAmount,
-                        selectedDepositToken.decimals
-                      );
-                      await depositToContract(
-                        selectedDepositToken.address,
-                        amount
-                      );
-                      setDepositAmount("");
+                      if (!ethers.isAddress(customTokenAddress)) {
+                        setError("Invalid token address");
+                        return;
+                      }
+                      setLoading(true);
+                      try {
+                        const tokenContract = new Contract(
+                          customTokenAddress,
+                          ERC20_ABI,
+                          provider
+                        );
+                        const [symbol, decimals, name] = await Promise.all([
+                          tokenContract.symbol(),
+                          tokenContract.decimals(),
+                          tokenContract.name(),
+                        ]);
+
+                        const newToken = {
+                          symbol,
+                          address: customTokenAddress,
+                          decimals,
+                          name,
+                          custom: true,
+                        };
+
+                        setTokens((prev) => [...prev, newToken]);
+                        setCustomTokenAddress("");
+                        setError("");
+                        showSuccessNotification(
+                          `Successfully added ${symbol} token!`
+                        );
+                      } catch (error) {
+                        console.error("Error adding token:", error);
+                        setError("Failed to add token");
+                      } finally {
+                        setLoading(false);
+                      }
                     }}
-                    disabled={
-                      !selectedDepositToken || !depositAmount || loading
-                    }
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    disabled={loading || !customTokenAddress}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl"
                   >
-                    <Coins className="mr-2 h-4 w-4" />
-                    Deposit
+                    {loading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                        Adding...
+                      </div>
+                    ) : (
+                      "Add Token"
+                    )}
                   </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl">
-                  <h3 className="font-semibold text-gray-700">
-                    Add Custom Token
-                  </h3>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      placeholder="Token contract address"
-                      value={customTokenAddress}
-                      onChange={(e) => setCustomTokenAddress(e.target.value)}
-                      className="flex-1 bg-white"
-                    />
-                    <Button
-                      onClick={async () => {
-                        if (!ethers.isAddress(customTokenAddress)) {
-                          setError("Invalid token address");
-                          return;
-                        }
-                        setLoading(true);
-                        try {
-                          const tokenContract = new Contract(
-                            customTokenAddress,
-                            ERC20_ABI,
-                            provider
-                          );
-                          const [symbol, decimals, name] = await Promise.all([
-                            tokenContract.symbol(),
-                            tokenContract.decimals(),
-                            tokenContract.name(),
-                          ]);
-
-                          const newToken = {
-                            symbol,
-                            address: customTokenAddress,
-                            decimals,
-                            name,
-                            custom: true,
-                          };
-
-                          setTokens((prev) => [...prev, newToken]);
-                          setCustomTokenAddress("");
-                          setError("");
-                        } catch (error) {
-                          console.error("Error adding token:", error);
-                          setError("Failed to add token");
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      disabled={loading || !customTokenAddress}
-                      className="bg-gradient-to-r from-purple-500 to-pink-500"
-                    >
-                      {loading ? "Adding..." : "Add Token"}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-4 bg-gray-50 p-4 sm:p-6 rounded-xl">
-                  <h3 className="font-semibold text-gray-700">
-                    Custom Exchange Rate
-                  </h3>
+              <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-md">
+                <h3 className="font-semibold text-gray-700 flex items-center">
+                  <ArrowDownUp className="h-5 w-5 mr-2 text-purple-500" />
+                  Custom Exchange Rate
+                </h3>
+                <div className="flex items-center">
                   <Input
                     type="number"
                     placeholder="Enter rate (e.g. 1.23)"
                     value={customExchangeRate}
                     onChange={(e) => setCustomExchangeRate(e.target.value)}
-                    className="w-full bg-white"
+                    className="w-full bg-white rounded-xl"
                   />
+                  <Button
+                    className="ml-3 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl"
+                    onClick={() => {
+                      setCustomExchangeRate("");
+                      showSuccessNotification("Custom exchange rate cleared!");
+                    }}
+                    disabled={!customExchangeRate}
+                  >
+                    Clear
+                  </Button>
                 </div>
               </div>
             </div>
