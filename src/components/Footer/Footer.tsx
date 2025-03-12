@@ -13,8 +13,9 @@ const LINKS = {
     { name: 'Visualization', url: '/studio?tab=visualization' },
     { name: 'Transactions', url: '/studio?tab=transactions' }
   ],
-  Swap: [
-    { name: 'Exchange', url: '/exchange' }
+  Blockchain: [
+    { name: 'Exchange', url: '/exchange' },
+    { name: 'NFTs', url: '/nfts' }
   ],
   Offering: [
     { name: 'For Chains', url: '/for-chains' },

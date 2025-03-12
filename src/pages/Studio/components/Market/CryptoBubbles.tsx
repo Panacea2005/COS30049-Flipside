@@ -61,15 +61,6 @@ export const CryptoBubbles: React.FC<CryptoBubblesProps> = ({ onBubbleClick }) =
     return Math.min(minSize + 50 + ((absChange - 10) / 5) * 20, maxSize);
   }, []);
 
-  // Check if two bubbles overlap
-  const checkOverlap = useCallback((b1: CryptoBubble, b2: CryptoBubble) => {
-    const dx = b1.x - b2.x;
-    const dy = b1.y - b2.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const minDistance = (b1.size + b2.size) / 2;
-    return distance < minDistance;
-  }, []);
-
   // Position bubbles without overlap
   const positionBubblesWithoutOverlap = useCallback((bubblesArray: CryptoBubble[], width: number, height: number) => {
     // Sort by size (largest first) to prioritize placing bigger bubbles
@@ -398,23 +389,25 @@ export const CryptoBubbles: React.FC<CryptoBubblesProps> = ({ onBubbleClick }) =
                   transition: 'box-shadow 0.3s, border 0.3s',
                   overflow: 'hidden',
                 }}
-                onMouseOver={(e: { currentTarget: { style: { boxShadow: string; border: string; }; }; }) => {
-                  e.currentTarget.style.boxShadow = `
+                onMouseOver={(e: React.MouseEvent) => {
+                  const target = e.currentTarget as HTMLElement;
+                  target.style.boxShadow = `
                     0 8px 25px rgba(0,0,0,0.2), 
                     0 0 ${Math.abs(priceChange) + 10}px ${colors.main},
                     inset 0 -5px 15px rgba(0,0,0,0.3),
                     inset 0 5px 15px rgba(255,255,255,0.6)
                   `;
-                  e.currentTarget.style.border = '2px solid rgba(255,255,255,1)';
+                  target.style.border = '2px solid rgba(255,255,255,1)';
                 }}
-                onMouseOut={(e: { currentTarget: { style: { boxShadow: string; border: string; }; }; }) => {
-                  e.currentTarget.style.boxShadow = `
+                onMouseOut={(e: React.MouseEvent) => {
+                  const target = e.currentTarget as HTMLElement;
+                  target.style.boxShadow = `
                     0 4px 12px rgba(0,0,0,0.15), 
                     0 0 ${Math.abs(priceChange) + 5}px ${colors.main},
                     inset 0 -5px 15px rgba(0,0,0,0.3),
                     inset 0 5px 15px rgba(255,255,255,0.4)
                   `;
-                  e.currentTarget.style.border = '2px solid rgba(255,255,255,0.8)';
+                  target.style.border = '2px solid rgba(255,255,255,0.8)';
                 }}
               >
                 {/* Logo with enhanced shadow for better pop */}

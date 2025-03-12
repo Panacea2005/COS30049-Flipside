@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   fetchListedNfts,
   fetchUserNfts,
   fetchNftCollections,
-  purchaseNft,
+  buyNft,
   NftItem,
   NftCollection,
 } from "../../lib/alchemy/alchemyNFTService";
+import { BrowserProvider } from "ethers";
 
 // Import shadcn UI components
 import { Button } from "@/components/ui/button";
@@ -42,7 +44,7 @@ import {
 import { Loader2, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const NFTMarketplace: React.FC = () => {
-  // State management
+  const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [network, setNetwork] = useState<string>("mainnet");
   const [listedNfts, setListedNfts] = useState<NftItem[]>([]);
@@ -57,7 +59,6 @@ const NFTMarketplace: React.FC = () => {
   const [purchaseError, setPurchaseError] = useState<string>("");
   const [openDialog, setOpenDialog] = useState<boolean>(false);
 
-  // Load marketplace NFTs on initial render and when network changes
   useEffect(() => {
     const loadMarketplace = async () => {
       setLoading(true);
@@ -84,7 +85,6 @@ const NFTMarketplace: React.FC = () => {
     loadMarketplace();
   }, [network]);
 
-  // Load user NFTs when wallet is connected
   useEffect(() => {
     const loadUserNfts = async () => {
       if (!walletAddress) return;
@@ -108,9 +108,72 @@ const NFTMarketplace: React.FC = () => {
     loadUserNfts();
   }, [walletAddress, network]);
 
-  // Handle network change
+  useEffect(() => {
+    if (window.ethereum) {
+      const handleChainChanged = (chainId: string) => {
+        let newNetwork = "mainnet";
+        if (chainId === "0xaa36a7") {
+          newNetwork = "sepolia";
+        }
+        setNetwork(newNetwork);
+        fetchListedNfts(newNetwork, 12).then(setListedNfts);
+        fetchNftCollections(newNetwork).then(setCollections);
+        if (walletAddress) {
+          fetchUserNfts(walletAddress, newNetwork).then(setUserNfts);
+        }
+      };
+
+      window.ethereum.on("chainChanged", handleChainChanged);
+      return () => {
+        window.ethereum.removeListener("chainChanged", handleChainChanged);
+      };
+    }
+  }, [walletAddress]);
+
+  useEffect(() => {
+    const checkMetaMask = async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({
+            method: "eth_accounts",
+          });
+          if (accounts.length > 0) {
+            setWalletAddress(accounts[0]);
+          }
+          const chainId = await window.ethereum.request({
+            method: "eth_chainId",
+          });
+          if (chainId === "0x1") {
+            setNetwork("mainnet");
+          } else if (chainId === "0xaa36a7") {
+            setNetwork("sepolia");
+          }
+        } catch (error) {
+          console.error("Error checking MetaMask connection:", error);
+        }
+      }
+    };
+    checkMetaMask();
+  }, []);
+
   const handleNetworkChange = async (newNetwork: string) => {
     try {
+      if (!window.ethereum) {
+        toast({
+          title: "MetaMask Not Found",
+          description: "Please install MetaMask to use this feature.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const chainIds = {
+        mainnet: "0x1",
+        sepolia: "0xaa36a7",
+      };
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainIds[newNetwork as keyof typeof chainIds] }],
+      });
       setNetwork(newNetwork);
       toast({
         title: "Network Changed",
@@ -118,7 +181,38 @@ const NFTMarketplace: React.FC = () => {
           newNetwork === "mainnet" ? "Ethereum Mainnet" : "Sepolia Testnet"
         }`,
       });
-    } catch (error) {
+      if (walletAddress) {
+        fetchUserNfts(walletAddress, newNetwork).then(setUserNfts);
+      }
+      fetchListedNfts(newNetwork, 12).then(setListedNfts);
+      fetchNftCollections(newNetwork).then(setCollections);
+    } catch (error: any) {
+      if (error.code === 4902) {
+        try {
+          const networkParams = {
+            sepolia: {
+              chainId: "0xaa36a7",
+              chainName: "Sepolia Testnet",
+              nativeCurrency: {
+                name: "Sepolia Ether",
+                symbol: "ETH",
+                decimals: 18,
+              },
+              rpcUrls: ["https://sepolia.infura.io/v3/"],
+              blockExplorerUrls: ["https://sepolia.etherscan.io"],
+            },
+          };
+          if (newNetwork === "sepolia") {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [networkParams.sepolia],
+            });
+            setNetwork(newNetwork);
+          }
+        } catch (addError) {
+          console.error("Failed to add network:", addError);
+        }
+      }
       console.error("Failed to switch network:", error);
       toast({
         title: "Error",
@@ -128,37 +222,48 @@ const NFTMarketplace: React.FC = () => {
     }
   };
 
-  // Handle wallet connection
   const handleConnectWallet = async () => {
     try {
-      // This is a simplified mock for wallet connection
-      // In a real application, you would use something like MetaMask's ethereum.request
-      const mockAddress =
-        "0x" +
-        Array(40)
-          .fill(0)
-          .map(() => Math.floor(Math.random() * 16).toString(16))
-          .join("");
-
-      setWalletAddress(mockAddress);
+      if (!window.ethereum) {
+        toast({
+          title: "MetaMask Not Found",
+          description: "Please install MetaMask to use this feature.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      setWalletAddress(accounts[0]);
+      window.ethereum.on("accountsChanged", (newAccounts: string[]) => {
+        setWalletAddress(newAccounts[0] || "");
+      });
       toast({
         title: "Wallet Connected",
-        description: `Connected to ${mockAddress.substring(
+        description: `Connected to ${accounts[0].substring(
           0,
           6
-        )}...${mockAddress.substring(38)}`,
+        )}...${accounts[0].substring(38)}`,
       });
     } catch (error) {
       console.error("Failed to connect wallet:", error);
       toast({
-        title: "Error",
+        title: "Connection Error",
         description: "Failed to connect wallet. Please try again.",
         variant: "destructive",
       });
     }
   };
 
-  // Handle NFT purchase
+  const handleDisconnectWallet = () => {
+    setWalletAddress("");
+    toast({
+      title: "Wallet Disconnected",
+      description: "Your wallet has been disconnected.",
+    });
+  };
+
   const handlePurchase = async (nft: NftItem) => {
     setSelectedNft(nft);
     setOpenDialog(true);
@@ -172,49 +277,54 @@ const NFTMarketplace: React.FC = () => {
     setPurchaseError("");
 
     try {
-      const result = await purchaseNft(
-        selectedNft.tokenId,
+      if (!window.ethereum) {
+        throw new Error("MetaMask not found. Please install MetaMask.");
+      }
+      const provider = new BrowserProvider(window.ethereum); // Updated to Web3Provider
+      const signer = await provider.getSigner();
+
+      const success = await buyNft(
         selectedNft.contractAddress,
-        network,
-        walletAddress
+        selectedNft.tokenId,
+        signer,
+        network
       );
 
-      if (result.success) {
-        setPurchaseSuccess(true);
-        setTxHash(result.txHash || "");
+      if (success) {
+        const transactionCount = await provider.getTransactionCount(
+          walletAddress
+        );
+        const tx = await provider.getTransaction(
+          (transactionCount - 1).toString(16)
+        );
+        const transactionHash = tx ? tx.hash : "";
 
-        // Refresh the marketplace after successful purchase
+        setPurchaseSuccess(true);
+        setTxHash(transactionHash);
         const updatedNfts = await fetchListedNfts(network, 12);
         setListedNfts(updatedNfts);
-
-        // Refresh user NFTs
         const updatedUserNfts = await fetchUserNfts(walletAddress, network);
         setUserNfts(updatedUserNfts);
-
         toast({
           title: "Purchase Successful",
           description: "You have successfully purchased the NFT!",
         });
       } else {
-        setPurchaseError(result.error || "Transaction failed");
+        setPurchaseError("Transaction failed. Please try again.");
         toast({
           title: "Purchase Failed",
-          description:
-            result.error ||
-            "Failed to complete the purchase. Please try again.",
+          description: "Transaction failed. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error during purchase:", error);
-      setPurchaseError(
-        error instanceof Error ? error.message : "Unknown error occurred"
-      );
-
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      setPurchaseError(errorMessage);
       toast({
-        title: "Error",
-        description:
-          "An unexpected error occurred during purchase. Please try again.",
+        title: "Purchase Failed",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -230,7 +340,6 @@ const NFTMarketplace: React.FC = () => {
     setTxHash("");
   };
 
-  // Render loading skeletons
   const renderSkeletons = () => {
     return Array(4)
       .fill(0)
@@ -247,18 +356,21 @@ const NFTMarketplace: React.FC = () => {
       ));
   };
 
-  // Render NFT card
   const renderNftCard = (nft: NftItem, isUserNft: boolean = false) => {
+    let imageUrl = nft.imageUrl;
+    if (imageUrl && imageUrl.startsWith("ipfs://")) {
+      imageUrl = `https://ipfs.io/ipfs/${imageUrl.slice(7)}`;
+    }
     return (
       <Card
-        key={nft.tokenId}
+        key={`${nft.contractAddress}-${nft.tokenId}`}
         className="overflow-hidden transition-all hover:shadow-md"
       >
         <CardHeader className="p-0">
           <div className="relative h-48 w-full">
-            {nft.imageUrl ? (
+            {imageUrl ? (
               <img
-                src={nft.imageUrl}
+                src={imageUrl}
                 alt={nft.name || `NFT ${nft.tokenId}`}
                 className="object-cover w-full h-full"
               />
@@ -286,7 +398,6 @@ const NFTMarketplace: React.FC = () => {
               </AvatarFallback>
             </Avatar>
           </div>
-
           <div className="mt-3 flex items-center justify-between">
             <Badge variant="outline" className="px-2 py-1">
               #{nft.tokenId?.substring(0, 8)}
@@ -305,7 +416,7 @@ const NFTMarketplace: React.FC = () => {
             >
               View Details
             </Button>
-          ) : (
+          ) : nft.isListed ? (
             <Button
               className="w-full"
               onClick={() => handlePurchase(nft)}
@@ -313,11 +424,15 @@ const NFTMarketplace: React.FC = () => {
             >
               {!walletAddress ? "Connect Wallet to Buy" : "Purchase"}
             </Button>
+          ) : (
+            <Button className="w-full" disabled>
+              Not Listed for Sale
+            </Button>
           )}
         </CardFooter>
       </Card>
     );
-  };
+  };  
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -328,7 +443,6 @@ const NFTMarketplace: React.FC = () => {
             Discover, collect, and sell extraordinary NFTs
           </p>
         </div>
-
         <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-4 sm:space-y-0">
           <Select value={network} onValueChange={handleNetworkChange}>
             <SelectTrigger className="w-[180px]">
@@ -339,17 +453,20 @@ const NFTMarketplace: React.FC = () => {
               <SelectItem value="sepolia">Sepolia Testnet</SelectItem>
             </SelectContent>
           </Select>
-
           {!walletAddress ? (
             <Button onClick={handleConnectWallet}>Connect Wallet</Button>
           ) : (
-            <Button variant="outline">
-              {walletAddress.substring(0, 6)}...{walletAddress.substring(38)}
-            </Button>
+            <div className="flex space-x-2">
+              <Button variant="outline">
+                {walletAddress.substring(0, 6)}...{walletAddress.substring(38)}
+              </Button>
+              <Button variant="destructive" onClick={handleDisconnectWallet}>
+                Disconnect
+              </Button>
+            </div>
           )}
         </div>
       </div>
-
       <Tabs defaultValue="marketplace" className="w-full">
         <TabsList>
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
@@ -358,7 +475,6 @@ const NFTMarketplace: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="collections">Collections</TabsTrigger>
         </TabsList>
-
         <TabsContent value="marketplace" className="mt-6">
           {loading ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -379,7 +495,6 @@ const NFTMarketplace: React.FC = () => {
             </Alert>
           )}
         </TabsContent>
-
         <TabsContent value="my-nfts" className="mt-6">
           {!walletAddress ? (
             <Alert className="mt-4">
@@ -408,7 +523,6 @@ const NFTMarketplace: React.FC = () => {
             </Alert>
           )}
         </TabsContent>
-
         <TabsContent value="collections" className="mt-6">
           {loading ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -462,7 +576,7 @@ const NFTMarketplace: React.FC = () => {
                       variant="outline"
                       className="w-full"
                       onClick={() =>
-                        (window.location.href = `/collections/${collection.id}`)
+                        navigate(`/collections/${collection.address}`)
                       }
                     >
                       View Collection
@@ -483,8 +597,6 @@ const NFTMarketplace: React.FC = () => {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Purchase Dialog */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -497,7 +609,6 @@ const NFTMarketplace: React.FC = () => {
                 : "Please confirm that you want to purchase this NFT."}
             </DialogDescription>
           </DialogHeader>
-
           {!purchaseSuccess && selectedNft && (
             <div className="flex flex-col items-center space-y-4 py-4">
               <div className="relative h-32 w-32 overflow-hidden rounded-lg">
@@ -513,7 +624,6 @@ const NFTMarketplace: React.FC = () => {
                   </div>
                 )}
               </div>
-
               <div className="text-center">
                 <h3 className="text-lg font-medium">
                   {selectedNft.name || `NFT #${selectedNft.tokenId}`}
@@ -525,7 +635,6 @@ const NFTMarketplace: React.FC = () => {
                   {selectedNft.price} ETH
                 </p>
               </div>
-
               {purchaseError && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -535,11 +644,9 @@ const NFTMarketplace: React.FC = () => {
               )}
             </div>
           )}
-
           {purchaseSuccess && (
             <div className="flex flex-col items-center space-y-4 py-4">
               <CheckCircle2 className="h-16 w-16 text-green-500" />
-
               {txHash && (
                 <div className="text-center">
                   <p className="text-sm text-gray-500">Transaction Hash:</p>
@@ -548,7 +655,6 @@ const NFTMarketplace: React.FC = () => {
               )}
             </div>
           )}
-
           <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
             {purchaseSuccess ? (
               <Button onClick={closeDialog}>Close</Button>
