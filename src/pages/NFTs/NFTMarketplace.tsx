@@ -1,311 +1,582 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Wallet, ArrowRightLeft, Loader, Grid, Package, ShoppingCart, User, X } from 'lucide-react';
-import { 
-  fetchListedNfts, 
+import React, { useState, useEffect } from "react";
+import {
+  fetchListedNfts,
   fetchUserNfts,
   fetchNftCollections,
-  purchaseNft, 
-  NftItem, 
-  NftCollection 
-} from '../../lib/etherscan/etherscanNftservice';
+  purchaseNft,
+  NftItem,
+  NftCollection,
+} from "../../lib/alchemy/alchemyNFTService";
 
-export default function NFTMarketplace() {
-  const [network, setNetwork] = useState<'mainnet' | 'sepolia'>('mainnet');
-  const [walletAddress, setWalletAddress] = useState<string>('');
-  const [isWalletConnecting, setIsWalletConnecting] = useState(false);
-  const [activeTab, setActiveTab] = useState('marketplace');
-  const [isLoading, setIsLoading] = useState(true);
+// Import shadcn UI components
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+
+const NFTMarketplace: React.FC = () => {
+  // State management
+  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [network, setNetwork] = useState<string>("mainnet");
   const [listedNfts, setListedNfts] = useState<NftItem[]>([]);
   const [userNfts, setUserNfts] = useState<NftItem[]>([]);
   const [collections, setCollections] = useState<NftCollection[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadingUserNfts, setLoadingUserNfts] = useState<boolean>(false);
+  const [purchasing, setPurchasing] = useState<boolean>(false);
   const [selectedNft, setSelectedNft] = useState<NftItem | null>(null);
-  const [isPurchasing, setIsPurchasing] = useState(false);
-  const [purchaseStatus, setPurchaseStatus] = useState<{
-    success: boolean;
-    message: string;
-    txHash?: string;
-  } | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<boolean>(false);
+  const [txHash, setTxHash] = useState<string>("");
+  const [purchaseError, setPurchaseError] = useState<string>("");
+  const [openDialog, setOpenDialog] = useState<boolean>(false);
 
-  const switchNetwork = (newNetwork: 'mainnet' | 'sepolia') => {
-    setNetwork(newNetwork);
-    setIsLoading(true);
-    loadMarketplaceData(newNetwork);
+  // Load marketplace NFTs on initial render and when network changes
+  useEffect(() => {
+    const loadMarketplace = async () => {
+      setLoading(true);
+      try {
+        const [nftsResult, collectionsResult] = await Promise.all([
+          fetchListedNfts(network, 12),
+          fetchNftCollections(network),
+        ]);
+
+        setListedNfts(nftsResult);
+        setCollections(collectionsResult);
+      } catch (error) {
+        console.error("Error loading marketplace data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load marketplace data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMarketplace();
+  }, [network]);
+
+  // Load user NFTs when wallet is connected
+  useEffect(() => {
+    const loadUserNfts = async () => {
+      if (!walletAddress) return;
+
+      setLoadingUserNfts(true);
+      try {
+        const userNftsResult = await fetchUserNfts(walletAddress, network);
+        setUserNfts(userNftsResult);
+      } catch (error) {
+        console.error("Error loading user NFTs:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your NFTs. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingUserNfts(false);
+      }
+    };
+
+    loadUserNfts();
+  }, [walletAddress, network]);
+
+  // Handle network change
+  const handleNetworkChange = async (newNetwork: string) => {
+    try {
+      setNetwork(newNetwork);
+      toast({
+        title: "Network Changed",
+        description: `Switched to ${
+          newNetwork === "mainnet" ? "Ethereum Mainnet" : "Sepolia Testnet"
+        }`,
+      });
+    } catch (error) {
+      console.error("Failed to switch network:", error);
+      toast({
+        title: "Error",
+        description: "Failed to switch networks. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const connectWallet = async () => {
-    setIsWalletConnecting(true);
+  // Handle wallet connection
+  const handleConnectWallet = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const address = "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"; 
-      setWalletAddress(address);
-      if (activeTab === 'myNfts') {
-        loadUserNfts(address, network);
-      }
+      // This is a simplified mock for wallet connection
+      // In a real application, you would use something like MetaMask's ethereum.request
+      const mockAddress =
+        "0x" +
+        Array(40)
+          .fill(0)
+          .map(() => Math.floor(Math.random() * 16).toString(16))
+          .join("");
+
+      setWalletAddress(mockAddress);
+      toast({
+        title: "Wallet Connected",
+        description: `Connected to ${mockAddress.substring(
+          0,
+          6
+        )}...${mockAddress.substring(38)}`,
+      });
     } catch (error) {
       console.error("Failed to connect wallet:", error);
-      alert("Failed to connect wallet. Please try again.");
-    } finally {
-      setIsWalletConnecting(false);
+      toast({
+        title: "Error",
+        description: "Failed to connect wallet. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const disconnectWallet = () => {
-    setWalletAddress('');
-    setUserNfts([]);
+  // Handle NFT purchase
+  const handlePurchase = async (nft: NftItem) => {
+    setSelectedNft(nft);
+    setOpenDialog(true);
   };
 
-  const loadMarketplaceData = async (currentNetwork: 'mainnet' | 'sepolia' = network) => {
-    setIsLoading(true);
-    try {
-      const [nfts, collections] = await Promise.all([
-        fetchListedNfts(currentNetwork, 12),
-        fetchNftCollections(currentNetwork, 6)
-      ]);
-      setListedNfts(nfts);
-      setCollections(collections);
-    } catch (error) {
-      console.error("Failed to load marketplace data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadUserNfts = async (address: string, currentNetwork: 'mainnet' | 'sepolia' = network) => {
-    if (!address) return;
-    setIsLoading(true);
-    try {
-      const nfts = await fetchUserNfts(address, currentNetwork);
-      setUserNfts(nfts);
-    } catch (error) {
-      console.error("Failed to load user NFTs:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePurchaseNft = async () => {
+  const confirmPurchase = async () => {
     if (!selectedNft || !walletAddress) return;
-    setIsPurchasing(true);
-    setPurchaseStatus(null);
+
+    setPurchasing(true);
+    setPurchaseSuccess(false);
+    setPurchaseError("");
+
     try {
       const result = await purchaseNft(
-        selectedNft.contractAddress,
         selectedNft.tokenId,
-        selectedNft.price,
-        walletAddress,
-        network
+        selectedNft.contractAddress,
+        network,
+        walletAddress
       );
+
       if (result.success) {
-        setPurchaseStatus({
-          success: true,
-          message: 'NFT purchased successfully!',
-          txHash: result.transactionHash
+        setPurchaseSuccess(true);
+        setTxHash(result.txHash || "");
+
+        // Refresh the marketplace after successful purchase
+        const updatedNfts = await fetchListedNfts(network, 12);
+        setListedNfts(updatedNfts);
+
+        // Refresh user NFTs
+        const updatedUserNfts = await fetchUserNfts(walletAddress, network);
+        setUserNfts(updatedUserNfts);
+
+        toast({
+          title: "Purchase Successful",
+          description: "You have successfully purchased the NFT!",
         });
-        setListedNfts(prev => prev.filter(nft => nft.tokenId !== selectedNft.tokenId));
       } else {
-        setPurchaseStatus({
-          success: false,
-          message: result.error || 'Purchase failed. Please try again.'
+        setPurchaseError(result.error || "Transaction failed");
+        toast({
+          title: "Purchase Failed",
+          description:
+            result.error ||
+            "Failed to complete the purchase. Please try again.",
+          variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Error purchasing NFT:", error);
-      setPurchaseStatus({
-        success: false,
-        message: 'An error occurred during purchase.'
+      console.error("Error during purchase:", error);
+      setPurchaseError(
+        error instanceof Error ? error.message : "Unknown error occurred"
+      );
+
+      toast({
+        title: "Error",
+        description:
+          "An unexpected error occurred during purchase. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsPurchasing(false);
+      setPurchasing(false);
     }
   };
 
-  useEffect(() => {
-    loadMarketplaceData();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'myNfts' && walletAddress) {
-      loadUserNfts(walletAddress, network);
-    }
-  }, [activeTab, walletAddress, network]);
-
-  useEffect(() => {
+  const closeDialog = () => {
+    setOpenDialog(false);
+    setPurchaseSuccess(false);
+    setPurchaseError("");
     setSelectedNft(null);
-    setPurchaseStatus(null);
-  }, [activeTab]);
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
+    setTxHash("");
   };
 
-  const handleNftClick = (nft: NftItem) => {
-    setSelectedNft(nft);
-    setPurchaseStatus(null);
+  // Render loading skeletons
+  const renderSkeletons = () => {
+    return Array(4)
+      .fill(0)
+      .map((_, index) => (
+        <div key={index} className="flex flex-col space-y-3">
+          <Skeleton className="h-[250px] w-full rounded-lg" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="flex justify-between">
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+        </div>
+      ));
+  };
+
+  // Render NFT card
+  const renderNftCard = (nft: NftItem, isUserNft: boolean = false) => {
+    return (
+      <Card
+        key={nft.tokenId}
+        className="overflow-hidden transition-all hover:shadow-md"
+      >
+        <CardHeader className="p-0">
+          <div className="relative h-48 w-full">
+            {nft.imageUrl ? (
+              <img
+                src={nft.imageUrl}
+                alt={nft.name || `NFT ${nft.tokenId}`}
+                className="object-cover w-full h-full"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                <Info className="h-12 w-12 text-gray-400" />
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">
+                {nft.name || `NFT #${nft.tokenId}`}
+              </CardTitle>
+              <CardDescription className="mt-1 truncate">
+                {nft.collection?.name || "Unknown Collection"}
+              </CardDescription>
+            </div>
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={nft.collection?.imageUrl} />
+              <AvatarFallback>
+                {nft.collection?.name?.charAt(0) || "?"}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            <Badge variant="outline" className="px-2 py-1">
+              #{nft.tokenId?.substring(0, 8)}
+            </Badge>
+            <p className="font-medium">
+              {nft.price ? `${nft.price} ETH` : "Not for sale"}
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="p-4 pt-0">
+          {isUserNft ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => (window.location.href = `/nfts/${nft.tokenId}`)}
+            >
+              View Details
+            </Button>
+          ) : (
+            <Button
+              className="w-full"
+              onClick={() => handlePurchase(nft)}
+              disabled={!walletAddress || !nft.price}
+            >
+              {!walletAddress ? "Connect Wallet to Buy" : "Purchase"}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+    );
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-white shadow-sm py-4 mt-16">
-        <div className="container mx-auto px-4 flex justify-between items-center">
-          {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <Package className="h-6 w-6 text-indigo-500" />
-            <h1 className="text-xl font-bold text-gray-800">NFT Marketplace</h1>
-          </div>
-          
-          {/* Network toggle and wallet connection */}
-          <div className="flex items-center space-x-4">
-            {/* Network toggle */}
-            <div className="flex items-center p-1 bg-gray-100 rounded-lg">
-              <button 
-                onClick={() => switchNetwork('mainnet')}
-                className={`px-3 py-1 rounded-md text-sm font-medium ${network === 'mainnet' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Mainnet
-              </button>
-              <button 
-                onClick={() => switchNetwork('sepolia')}
-                className={`px-3 py-1 rounded-md text-sm font-medium ${network === 'sepolia' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Sepolia
-              </button>
-            </div>
-
-            {/* Wallet button */}
-            {walletAddress ? (
-              <div className="relative group">
-                <button className="flex items-center space-x-2 px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors">
-                  <User className="h-5 w-5" />
-                  <span>{`${walletAddress.substring(0, 6)}...${walletAddress.substring(38)}`}</span>
-                </button>
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg hidden group-hover:block">
-                  <button 
-                    onClick={disconnectWallet}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Disconnect Wallet
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button 
-                onClick={connectWallet}
-                disabled={isWalletConnecting}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors disabled:bg-indigo-300"
-              >
-                {isWalletConnecting ? (
-                  <>
-                    <Loader className="h-5 w-5 animate-spin" />
-                    <span>Connecting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Wallet className="h-5 w-5" />
-                    <span>Connect Wallet</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8 mt-16 flex flex-col items-start justify-between space-y-4 md:flex-row md:items-center md:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold">NFT Marketplace</h1>
+          <p className="mt-2 text-gray-500">
+            Discover, collect, and sell extraordinary NFTs
+          </p>
         </div>
-      </header>
 
-      {/* Main content */}
-      <main className="flex-grow container mx-auto px-4 py-8">
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-8">
-          <button 
-            onClick={() => handleTabChange('marketplace')}
-            className={`mr-6 py-2 px-1 font-medium ${activeTab === 'marketplace' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Marketplace
-          </button>
-          <button 
-            onClick={() => handleTabChange('collections')}
-            className={`mr-6 py-2 px-1 font-medium ${activeTab === 'collections' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Collections
-          </button>
-          <button 
-            onClick={() => handleTabChange('myNfts')}
-            className={`mr-6 py-2 px-1 font-medium ${activeTab === 'myNfts' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
-          >
+        <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-4 sm:space-y-0">
+          <Select value={network} onValueChange={handleNetworkChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select Network" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mainnet">Ethereum Mainnet</SelectItem>
+              <SelectItem value="sepolia">Sepolia Testnet</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {!walletAddress ? (
+            <Button onClick={handleConnectWallet}>Connect Wallet</Button>
+          ) : (
+            <Button variant="outline">
+              {walletAddress.substring(0, 6)}...{walletAddress.substring(38)}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Tabs defaultValue="marketplace" className="w-full">
+        <TabsList>
+          <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
+          <TabsTrigger value="my-nfts" disabled={!walletAddress}>
             My NFTs
-          </button>
-          <button 
-            onClick={() => handleTabChange('activity')}
-            className={`py-2 px-1 font-medium ${activeTab === 'activity' ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Activity
-          </button>
-        </div>
+          </TabsTrigger>
+          <TabsTrigger value="collections">Collections</TabsTrigger>
+        </TabsList>
 
-        {/* Loading state */}
-        {isLoading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="flex flex-col items-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
-              <p className="text-gray-500">Loading NFTs on {network}...</p>
+        <TabsContent value="marketplace" className="mt-6">
+          {loading ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {renderSkeletons()}
             </div>
-          </div>
-        )}
+          ) : listedNfts.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {listedNfts.map((nft) => renderNftCard(nft))}
+            </div>
+          ) : (
+            <Alert className="mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>No NFTs Available</AlertTitle>
+              <AlertDescription>
+                There are currently no NFTs listed on the marketplace. Check
+                back later!
+              </AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
 
-        {/* Marketplace Tab */}
-        {!isLoading && activeTab === 'marketplace' && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">
-                Available NFTs on {network === 'mainnet' ? 'Ethereum Mainnet' : 'Sepolia Testnet'}
-              </h2>
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => loadMarketplaceData()}
-                  className="flex items-center space-x-1 px-3 py-1 bg-gray-100 rounded-md text-gray-700 hover:bg-gray-200 transition-colors"
+        <TabsContent value="my-nfts" className="mt-6">
+          {!walletAddress ? (
+            <Alert className="mt-4">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Wallet Not Connected</AlertTitle>
+              <AlertDescription>
+                Connect your wallet to view your NFTs.
+              </AlertDescription>
+            </Alert>
+          ) : loadingUserNfts ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {renderSkeletons()}
+            </div>
+          ) : userNfts.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {userNfts.map((nft) => renderNftCard(nft, true))}
+            </div>
+          ) : (
+            <Alert className="mt-4">
+              <Info className="h-4 w-4" />
+              <AlertTitle>No NFTs Found</AlertTitle>
+              <AlertDescription>
+                You don't own any NFTs in your connected wallet. Purchase NFTs
+                from the marketplace to see them here.
+              </AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+
+        <TabsContent value="collections" className="mt-6">
+          {loading ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array(3)
+                .fill(0)
+                .map((_, index) => (
+                  <Skeleton
+                    key={index}
+                    className="h-[200px] w-full rounded-lg"
+                  />
+                ))}
+            </div>
+          ) : collections.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {collections.map((collection) => (
+                <Card
+                  key={collection.id}
+                  className="overflow-hidden transition-all hover:shadow-md"
                 >
-                  <ArrowRightLeft className="h-4 w-4" />
-                  <span>Refresh</span>
-                </button>
-              </div>
-            </div>
-            
-            {listedNfts.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-gray-500">No NFTs currently listed for sale on {network}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {listedNfts.map((nft) => (
-                  <div 
-                    key={`${nft.contractAddress}-${nft.tokenId}`}
-                    onClick={() => handleNftClick(nft)}
-                    className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <div className="h-48 w-full bg-gray-200 overflow-hidden">
-                      <img 
-                        src={nft.metadata?.image || `/api/placeholder/400/400`} 
-                        alt={nft.metadata?.name || nft.name}
-                        className="w-full h-full object-cover"
+                  <div className="relative h-32 w-full">
+                    {collection.bannerUrl ? (
+                      <img
+                        src={collection.bannerUrl}
+                        alt={collection.name}
+                        className="object-cover w-full h-full"
                       />
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-800 truncate">{nft.metadata?.name || nft.name}</h3>
-                      <p className="text-sm text-gray-500 truncate">Collection: {nft.symbol}</p>
-                      <div className="flex justify-between items-center mt-3">
-                        <span className="text-indigo-500 font-bold">{nft.price} ETH</span>
-                        <div className="flex items-center text-sm bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
-                          <ShoppingCart className="h-3 w-3 mr-1" />
-                          <span>Buy Now</span>
-                        </div>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                        <Info className="h-12 w-12 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
+                        <AvatarImage src={collection.imageUrl} />
+                        <AvatarFallback>
+                          {collection.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle>{collection.name}</CardTitle>
+                        <CardDescription>
+                          {collection.itemCount} items
+                        </CardDescription>
                       </div>
                     </div>
+                  </CardContent>
+                  <CardFooter className="p-4 pt-0">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        (window.location.href = `/collections/${collection.id}`)
+                      }
+                    >
+                      View Collection
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Alert className="mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>No Collections Available</AlertTitle>
+              <AlertDescription>
+                There are currently no NFT collections available. Check back
+                later!
+              </AlertDescription>
+            </Alert>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Purchase Dialog */}
+      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {purchaseSuccess ? "Purchase Successful" : "Confirm Purchase"}
+            </DialogTitle>
+            <DialogDescription>
+              {purchaseSuccess
+                ? "Your NFT purchase has been completed successfully!"
+                : "Please confirm that you want to purchase this NFT."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!purchaseSuccess && selectedNft && (
+            <div className="flex flex-col items-center space-y-4 py-4">
+              <div className="relative h-32 w-32 overflow-hidden rounded-lg">
+                {selectedNft.imageUrl ? (
+                  <img
+                    src={selectedNft.imageUrl}
+                    alt={selectedNft.name || `NFT ${selectedNft.tokenId}`}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                    <Info className="h-12 w-12 text-gray-400" />
                   </div>
-                ))}
+                )}
               </div>
+
+              <div className="text-center">
+                <h3 className="text-lg font-medium">
+                  {selectedNft.name || `NFT #${selectedNft.tokenId}`}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {selectedNft.collection?.name || "Unknown Collection"}
+                </p>
+                <p className="mt-2 text-lg font-bold">
+                  {selectedNft.price} ETH
+                </p>
+              </div>
+
+              {purchaseError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{purchaseError}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          {purchaseSuccess && (
+            <div className="flex flex-col items-center space-y-4 py-4">
+              <CheckCircle2 className="h-16 w-16 text-green-500" />
+
+              {txHash && (
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">Transaction Hash:</p>
+                  <p className="break-all text-xs">{txHash}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
+            {purchaseSuccess ? (
+              <Button onClick={closeDialog}>Close</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={closeDialog}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmPurchase}
+                  disabled={purchasing || !selectedNft}
+                >
+                  {purchasing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    `Buy Now (${selectedNft?.price} ETH)`
+                  )}
+                </Button>
+              </>
             )}
-          </div>
-        )}
-      </main>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+};
+
+export default NFTMarketplace;
