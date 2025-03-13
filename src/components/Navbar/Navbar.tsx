@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Container } from '../layout/Container';
 import { Logo } from './Logo';
 import { NavLinks } from './NavLinks';
@@ -8,48 +8,8 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserMenu } from '../auth/UserMenu';
 
-// Pixel Animation Component
-const PixelAnimation = ({ isActive }: { isActive: boolean }) => {
-  const [pixels, setPixels] = useState<Array<{ x: number, y: number, opacity: number }>>([]);
-
-  useEffect(() => {
-    if (isActive) {
-      const newPixels = [];
-      for (let i = 0; i < 50; i++) {
-        newPixels.push({
-          x: Math.random() * 100,
-          y: Math.random() * 100,
-          opacity: Math.random() * 0.7 + 0.3
-        });
-      }
-      setPixels(newPixels);
-    } else {
-      setPixels([]);
-    }
-  }, [isActive]);
-
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {pixels.map((pixel, i) => (
-        <div
-          key={i}
-          className="absolute w-1 h-1 bg-gray-800"
-          style={{
-            left: `${pixel.x}%`,
-            top: `${pixel.y}%`,
-            opacity: pixel.opacity,
-            transition: 'opacity 0.3s ease-in-out, transform 0.3s ease-in-out',
-            transform: isActive ? 'scale(1)' : 'scale(0)'
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
 export const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeLink, setActiveLink] = useState<string | null>(null);
   const { user } = useAuth();
 
   const toggleMobileMenu = () => {
@@ -73,19 +33,14 @@ export const Navbar = () => {
 
         {/* Mobile Layout */}
         <div className="lg:hidden flex h-16 px-4 justify-between items-center">
-          {/* Left section - Menu Button */}
           <div className="w-16 flex items-center">
             <button onClick={toggleMobileMenu} className="p-2">
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
-
-          {/* Center section - Logo */}
           <div className="flex-1 flex justify-center items-center">
             <Logo />
           </div>
-
-          {/* Right section - UserMenu or empty space */}
           <div className="w-16 flex items-center justify-end">
             {user && <UserMenu />}
           </div>
@@ -99,99 +54,42 @@ export const Navbar = () => {
           <div className="fixed top-16 left-0 w-full bg-white h-[calc(100vh-4rem)] overflow-y-auto flex flex-col items-center justify-center text-center space-y-8 p-6">
             {/* Big Typography Links */}
             <div className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 space-y-8">
-              <div className="relative">
-                <a
-                  href="/flide"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('FLIDE')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  FLIDE
-                  <PixelAnimation isActive={activeLink === 'FLIDE'} />
-                </a>
-              </div>
-              <div className="relative">
-                <a
-                  href="/studio"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('STUDIO')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  STUDIO
-                  <PixelAnimation isActive={activeLink === 'STUDIO'} />
-                </a>
-              </div>
-              <div className="relative">
-                <a
-                  href="/exchange"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('EXCHANGE')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  EXCHANGE
-                  <PixelAnimation isActive={activeLink === 'EXCHANGE'} />
-                </a>
-              </div>
-              <div className="relative">
-                <a
-                  href="/nfts"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('NFTs')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  NFTs
-                  <PixelAnimation isActive={activeLink === 'NFTs'} />
-                </a>
-              </div>
-              <div className="relative">
-                <a
-                  href="/about"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('ABOUT')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  ABOUT
-                  <PixelAnimation isActive={activeLink === 'ABOUT'} />
-                </a>
-              </div>
-              <div className="relative">
-                <a
-                  href="/for-chains"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('FOR-CHAINS')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  FOR-CHAINS
-                  <PixelAnimation isActive={activeLink === 'FOR-CHAINS'} />
-                </a>
-              </div>
-              <div className="relative">
-                <a
-                  href="/for-analysts"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('FOR-ANALYSTS')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  FOR-ANALYSTS
-                  <PixelAnimation isActive={activeLink === 'FOR-ANALYSTS'} />
-                </a>
-              </div>
-              <div className="relative">
-                <a
-                  href="/for-explorers"
-                  className="relative"
-                  onMouseEnter={() => setActiveLink('FOR-EXPLORERS')}
-                  onMouseLeave={() => setActiveLink(null)}
-                >
-                  FOR-EXPLORERS
-                  <PixelAnimation isActive={activeLink === 'FOR-EXPLORERS'} />
-                </a>
-              </div>
+              {[
+                { href: '/flide', label: 'FLIDE' },
+                { href: '/studio', label: 'STUDIO' },
+                { href: '/exchange', label: 'EXCHANGE' },
+                { href: '/nfts', label: 'NFTs' },
+                { href: '/about', label: 'ABOUT' },
+                { href: '/for-chains', label: 'FOR-CHAINS' },
+                { href: '/for-analysts', label: 'FOR-ANALYSTS' },
+                { href: '/for-explorers', label: 'FOR-EXPLORERS' },
+              ].map((link) => (
+                <div key={link.href} className="relative group">
+                  <a
+                    href={link.href}
+                    className="relative block transition-all duration-300
+                      group-hover:[filter:blur(2px)_brightness(1.2)] 
+                      group-hover:[image-rendering:pixelated]
+                      group-hover:[background:linear-gradient(45deg,_#FF69B4,_#8A2BE2)]
+                      group-hover:[background-clip:text]
+                      group-hover:[color:transparent]
+                      group-hover:[text-shadow:_0_0_5px_#FF69B4]
+                      "
+                    style={{
+                      transitionProperty: 'filter, background, color, text-shadow',
+                      transitionDuration: '0.5s',
+                      transitionTimingFunction: 'ease-in-out',
+                    }}
+                  >
+                    {link.label}
+                  </a>
+                </div>
+              ))}
             </div>
 
             {/* Auth Buttons - Sign Up / Log In */}
             {!user && (
-              <div className="pt-4 border-t">
+              <div className="pt-4 border-t text-2xl md:text-3xl">
                 <AuthButtons />
               </div>
             )}

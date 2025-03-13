@@ -12,7 +12,7 @@ export default {
       },
       animation: {
         scroll: "scroll 30s linear infinite",
-		appear: 'appear 1s ease-out forwards',
+        appear: "appear 1s ease-out forwards",
       },
       keyframes: {
         scroll: {
