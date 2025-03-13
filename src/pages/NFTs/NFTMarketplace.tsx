@@ -6,6 +6,7 @@ import {
   fetchNftCollections,
   fetchCollectionInfo,
   fetchTotalCollectionsCount,
+  fetchAllNetworkNfts,
   buyNft,
   listNftForSale,
   NftItem,
@@ -85,9 +86,15 @@ const NFTMarketplace: React.FC = () => {
   const [isNewCollection, setIsNewCollection] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage] = useState<number>(6);
+  const [itemsPerPage] = useState<number>(20);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [marketplacePage, setMarketplacePage] = useState<number>(1);
+  const [allNfts, setAllNfts] = useState<NftItem[]>([]);
+  const [totalNftsCount, setTotalNftsCount] = useState<number>(0);
+  const [nftsPage, setNftsPage] = useState<number>(1);
+  const [loadingAllNfts, setLoadingAllNfts] = useState<boolean>(false);
+  const [nftSearchQuery, setNftSearchQuery] = useState<string>("");
+  const [isSearchingNfts, setIsSearchingNfts] = useState<boolean>(false);
 
   useEffect(() => {
     const loadMarketplace = async () => {
@@ -95,7 +102,11 @@ const NFTMarketplace: React.FC = () => {
       try {
         const listedNftsResult = await fetchListedNfts(network, itemsPerPage);
         setListedNfts(listedNftsResult);
-        const collectionsResult = await fetchNftCollections(network, currentPage, itemsPerPage);
+        const collectionsResult = await fetchNftCollections(
+          network,
+          currentPage,
+          itemsPerPage
+        );
         setCollections(collectionsResult);
         const total = await fetchTotalCollectionsCount(network);
         setTotalCollections(total);
@@ -113,6 +124,35 @@ const NFTMarketplace: React.FC = () => {
 
     loadMarketplace();
   }, [network, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    const loadAllNfts = async () => {
+      setLoadingAllNfts(true);
+      setIsSearchingNfts(true);
+      try {
+        const { nfts, totalCount } = await fetchAllNetworkNfts(
+          network,
+          nftsPage,
+          itemsPerPage,
+          nftSearchQuery // Pass search query
+        );
+        setAllNfts(nfts);
+        setTotalNftsCount(totalCount);
+      } catch (error) {
+        console.error("Error loading all NFTs:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load network NFTs. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingAllNfts(false);
+        setIsSearchingNfts(false);
+      }
+    };
+
+    loadAllNfts();
+  }, [network, nftsPage, itemsPerPage, nftSearchQuery]);
 
   useEffect(() => {
     const loadUserNfts = async () => {
@@ -213,6 +253,7 @@ const NFTMarketplace: React.FC = () => {
         params: [{ chainId: chainIds[newNetwork as keyof typeof chainIds] }],
       });
       setNetwork(newNetwork);
+      setNftSearchQuery("");
       toast({
         title: "Network Changed",
         description: `Switched to ${
@@ -224,6 +265,12 @@ const NFTMarketplace: React.FC = () => {
       }
       fetchListedNfts(newNetwork, 12).then(setListedNfts);
       fetchNftCollections(newNetwork).then(setCollections);
+      fetchAllNetworkNfts(newNetwork, 1, itemsPerPage).then(
+        ({ nfts, totalCount }) => {
+          setAllNfts(nfts);
+          setTotalNftsCount(totalCount);
+        }
+      );
     } catch (error: any) {
       if (error.code === 4902) {
         try {
@@ -308,8 +355,9 @@ const NFTMarketplace: React.FC = () => {
   };
 
   const handleListForSale = async (nft: NftItem) => {
+    console.log("handleListForSale called with NFT:", nft);
     setSelectedNft(nft);
-    setListingPrice("");
+    setListingPrice("0.0001"); // Default value for testing
     setListingName(nft.name || `NFT #${nft.tokenId}`);
     setListingDescription("");
     setListingCollection(
@@ -390,7 +438,16 @@ const NFTMarketplace: React.FC = () => {
   };
 
   const confirmListing = async () => {
-    if (!selectedNft || !walletAddress || !listingPrice) return;
+    console.log("confirmListing called", {
+      selectedNft,
+      walletAddress,
+      listingPrice,
+      listingName,
+    });
+    if (!selectedNft || !walletAddress || !listingPrice) {
+      console.log("Exiting early due to missing data");
+      return;
+    }
 
     setListing(true);
     setListingSuccess(false);
@@ -522,9 +579,13 @@ const NFTMarketplace: React.FC = () => {
     }
   };
 
+  const handleNftsPageChange = (page: number) => {
+    setNftsPage(page);
+  };
+
   const handleCollectionSearch = async () => {
     if (!searchQuery.trim()) return;
-  
+
     setIsSearching(true);
     try {
       const collection = await fetchCollectionInfo(searchQuery.trim(), network);
@@ -548,20 +609,28 @@ const NFTMarketplace: React.FC = () => {
     } finally {
       setIsSearching(false);
     }
-  };  
+  };
 
   const clearCollectionSearch = async () => {
     setSearchQuery("");
     setIsSearching(true);
     try {
-      const collectionsResult = await fetchNftCollections(network, currentPage, itemsPerPage);
+      const collectionsResult = await fetchNftCollections(
+        network,
+        currentPage,
+        itemsPerPage
+      );
       setCollections(collectionsResult);
     } finally {
       setIsSearching(false);
     }
   };
 
-  const renderPagination = (totalItems: number, currentPage: number, onPageChange: (page: number) => void) => {
+  const renderPagination = (
+    totalItems: number,
+    currentPage: number,
+    onPageChange: (page: number) => void
+  ) => {
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const pageRange = 2; // Show 2 pages on either side of current page
 
@@ -579,7 +648,9 @@ const NFTMarketplace: React.FC = () => {
           <PaginationItem>
             <PaginationPrevious
               onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+              className={
+                currentPage === 1 ? "pointer-events-none opacity-50" : ""
+              }
             />
           </PaginationItem>
           {pages.map((page) => (
@@ -594,8 +665,14 @@ const NFTMarketplace: React.FC = () => {
           ))}
           <PaginationItem>
             <PaginationNext
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+              onClick={() =>
+                onPageChange(Math.min(totalPages, currentPage + 1))
+              }
+              className={
+                currentPage === totalPages
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }
             />
           </PaginationItem>
         </PaginationContent>
@@ -625,16 +702,14 @@ const NFTMarketplace: React.FC = () => {
             {nft.name || `NFT #${nft.tokenId}`}
           </CardTitle>
           <CardDescription className="truncate">
-            {typeof nft.collection === "string"
-              ? nft.collection
-              : "Unknown Collection"}
+            {nft.collection?.name || "Unknown Collection"}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-grow p-0">
           <div className="relative aspect-square w-full overflow-hidden">
-            {nft.image ? (
+            {nft.imageUrl ? (
               <img
-                src={nft.image}
+                src={nft.imageUrl}
                 alt={nft.name || `NFT #${nft.tokenId}`}
                 className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
               />
@@ -664,7 +739,6 @@ const NFTMarketplace: React.FC = () => {
                     className="w-full"
                     onClick={() => {
                       // Here you would add a function to cancel listing
-                      // For now we'll just inform the user
                       toast({
                         title: "Feature Coming Soon",
                         description:
@@ -678,8 +752,15 @@ const NFTMarketplace: React.FC = () => {
               </>
             ) : (
               // For marketplace NFTs (not owned by user)
-              <Button onClick={() => handlePurchase(nft)} className="w-full">
-                Buy Now
+              <Button
+                onClick={() =>
+                  navigate(
+                    `/collections/${nft.contractAddress}/nfts/${nft.tokenId}`
+                  )
+                }
+                className="w-full"
+              >
+                View Details
               </Button>
             )
           ) : (
@@ -752,6 +833,7 @@ const NFTMarketplace: React.FC = () => {
         <TabsList className="mb-6">
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
           <TabsTrigger value="collections">Collections</TabsTrigger>
+          <TabsTrigger value="allNfts">NFTs</TabsTrigger>
           <TabsTrigger value="myNfts">My NFTs</TabsTrigger>
         </TabsList>
 
@@ -785,7 +867,11 @@ const NFTMarketplace: React.FC = () => {
                   </div>
                 ))}
               </div>
-              {renderPagination(listedNfts.length, marketplacePage, handleMarketplacePageChange)}
+              {renderPagination(
+                listedNfts.length,
+                marketplacePage,
+                handleMarketplacePageChange
+              )}
             </>
           ) : (
             <Alert className="bg-muted">
@@ -838,7 +924,10 @@ const NFTMarketplace: React.FC = () => {
                 {Array(3)
                   .fill(0)
                   .map((_, index) => (
-                    <Skeleton key={index} className="h-[200px] w-full rounded-lg" />
+                    <Skeleton
+                      key={index}
+                      className="h-[200px] w-full rounded-lg"
+                    />
                   ))}
               </div>
             ) : collections.length > 0 ? (
@@ -892,7 +981,11 @@ const NFTMarketplace: React.FC = () => {
                     </Card>
                   ))}
                 </div>
-                {renderPagination(totalCollections, currentPage, handlePageChange)}
+                {renderPagination(
+                  totalCollections,
+                  currentPage,
+                  handlePageChange
+                )}
               </>
             ) : (
               <Alert className="mt-4">
@@ -906,6 +999,89 @@ const NFTMarketplace: React.FC = () => {
               </Alert>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="allNfts">
+          <div className="mb-6">
+            <div className="flex items-center space-x-2">
+              <Input
+                placeholder="Search by contract (0x...), contract + token ID (0x... 123), or name"
+                value={nftSearchQuery}
+                onChange={(e) => setNftSearchQuery(e.target.value)}
+                className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setNftsPage(1); // Reset to first page on search
+                  }
+                }}
+              />
+              <Button onClick={() => setNftsPage(1)} disabled={isSearchingNfts}>
+                {isSearchingNfts ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Search"
+                )}
+              </Button>
+              {nftSearchQuery && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setNftSearchQuery("");
+                    setNftsPage(1);
+                  }}
+                  disabled={isSearchingNfts}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Examples: "0xBC4CA0..." (contract), "0xBC4CA0... 123" (specific
+              NFT), or "Bored Ape" (name)
+            </p>
+          </div>
+          {loadingAllNfts || isSearchingNfts ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+              {Array(10)
+                .fill(0)
+                .map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full mt-2" />
+                      <Skeleton className="h-4 w-3/4 mt-2" />
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Skeleton className="h-[200px] w-full" />
+                    </CardContent>
+                    <CardFooter className="pt-4">
+                      <Skeleton className="h-10 w-full" />
+                    </CardFooter>
+                  </Card>
+                ))}
+            </div>
+          ) : allNfts.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                {allNfts.map((nft) => (
+                  <div key={`${nft.contractAddress}-${nft.tokenId}`}>
+                    {renderNftCard(nft)}
+                  </div>
+                ))}
+              </div>
+              {renderPagination(totalNftsCount, nftsPage, handleNftsPageChange)}
+            </>
+          ) : (
+            <Alert className="bg-muted">
+              <Info className="h-5 w-5" />
+              <AlertTitle>No NFTs Found</AlertTitle>
+              <AlertDescription>
+                {nftSearchQuery
+                  ? "No NFTs match your search. Try a contract address (0x...), contract + token ID (0x... 123), or name."
+                  : "No NFTs from popular collections are available on this network."}
+              </AlertDescription>
+            </Alert>
+          )}
         </TabsContent>
 
         <TabsContent value="myNfts">
@@ -1173,7 +1349,6 @@ const NFTMarketplace: React.FC = () => {
       </Dialog>
 
       {/* List NFT for Sale Dialog */}
-      {/* List NFT for Sale Dialog */}
       <Dialog open={openListingDialog} onOpenChange={setOpenListingDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1360,12 +1535,23 @@ const NFTMarketplace: React.FC = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={confirmListing}
+                  onClick={() => {
+                    if (!selectedNft) {
+                      toast({
+                        title: "Error",
+                        description: "Please select an NFT to list for sale.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    confirmListing();
+                  }}
                   disabled={
                     listing ||
                     !listingPrice ||
                     parseFloat(listingPrice) <= 0 ||
-                    !listingName.trim()
+                    !listingName.trim() ||
+                    !selectedNft
                   }
                 >
                   {listing ? (
