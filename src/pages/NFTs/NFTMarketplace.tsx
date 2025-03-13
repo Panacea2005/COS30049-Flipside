@@ -4,6 +4,8 @@ import {
   fetchListedNfts,
   fetchUserNfts,
   fetchNftCollections,
+  fetchCollectionInfo,
+  fetchTotalCollectionsCount,
   buyNft,
   listNftForSale,
   NftItem,
@@ -44,6 +46,14 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Loader2, Info, AlertTriangle, CheckCircle2, Tag } from "lucide-react";
 
 const NFTMarketplace: React.FC = () => {
@@ -53,6 +63,7 @@ const NFTMarketplace: React.FC = () => {
   const [listedNfts, setListedNfts] = useState<NftItem[]>([]);
   const [userNfts, setUserNfts] = useState<NftItem[]>([]);
   const [collections, setCollections] = useState<NftCollection[]>([]);
+  const [totalCollections, setTotalCollections] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingUserNfts, setLoadingUserNfts] = useState<boolean>(false);
   const [purchasing, setPurchasing] = useState<boolean>(false);
@@ -72,18 +83,22 @@ const NFTMarketplace: React.FC = () => {
   const [listingImage, setListingImage] = useState<File | null>(null);
   const [listingImagePreview, setListingImagePreview] = useState<string>("");
   const [isNewCollection, setIsNewCollection] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage] = useState<number>(6);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [marketplacePage, setMarketplacePage] = useState<number>(1);
 
   useEffect(() => {
     const loadMarketplace = async () => {
       setLoading(true);
       try {
-        const [nftsResult, collectionsResult] = await Promise.all([
-          fetchListedNfts(network, 12),
-          fetchNftCollections(network),
-        ]);
-
-        setListedNfts(nftsResult);
+        const listedNftsResult = await fetchListedNfts(network, itemsPerPage);
+        setListedNfts(listedNftsResult);
+        const collectionsResult = await fetchNftCollections(network, currentPage, itemsPerPage);
         setCollections(collectionsResult);
+        const total = await fetchTotalCollectionsCount(network);
+        setTotalCollections(total);
       } catch (error) {
         console.error("Error loading marketplace data:", error);
         toast({
@@ -97,7 +112,7 @@ const NFTMarketplace: React.FC = () => {
     };
 
     loadMarketplace();
-  }, [network]);
+  }, [network, currentPage, itemsPerPage]);
 
   useEffect(() => {
     const loadUserNfts = async () => {
@@ -169,6 +184,15 @@ const NFTMarketplace: React.FC = () => {
     };
     checkMetaMask();
   }, []);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleMarketplacePageChange = (page: number) => {
+    setMarketplacePage(page);
+    fetchListedNfts(network, itemsPerPage).then(setListedNfts);
+  };
 
   const handleNetworkChange = async (newNetwork: string) => {
     try {
@@ -498,6 +522,87 @@ const NFTMarketplace: React.FC = () => {
     }
   };
 
+  const handleCollectionSearch = async () => {
+    if (!searchQuery.trim()) return;
+  
+    setIsSearching(true);
+    try {
+      const collection = await fetchCollectionInfo(searchQuery.trim(), network);
+      if (collection) {
+        setCollections([collection]);
+      } else {
+        toast({
+          title: "Collection Not Found",
+          description:
+            "No collection found with that address. Please check and try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error searching collection:", error);
+      toast({
+        title: "Search Error",
+        description: "Failed to search for collection. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };  
+
+  const clearCollectionSearch = async () => {
+    setSearchQuery("");
+    setIsSearching(true);
+    try {
+      const collectionsResult = await fetchNftCollections(network, currentPage, itemsPerPage);
+      setCollections(collectionsResult);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const renderPagination = (totalItems: number, currentPage: number, onPageChange: (page: number) => void) => {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const pageRange = 2; // Show 2 pages on either side of current page
+
+    const pages = [];
+    const startPage = Math.max(1, currentPage - pageRange);
+    const endPage = Math.min(totalPages, currentPage + pageRange);
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <Pagination className="mt-6">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+            />
+          </PaginationItem>
+          {pages.map((page) => (
+            <PaginationItem key={page}>
+              <PaginationLink
+                onClick={() => onPageChange(page)}
+                isActive={page === currentPage}
+              >
+                {page}
+              </PaginationLink>
+            </PaginationItem>
+          ))}
+          <PaginationItem>
+            <PaginationNext
+              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    );
+  };
+
   const renderNftCard = (nft: NftItem, isUserNft: boolean = false) => {
     return (
       <Card className="overflow-hidden h-full flex flex-col">
@@ -672,13 +777,16 @@ const NFTMarketplace: React.FC = () => {
                 ))}
             </div>
           ) : listedNfts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {listedNfts.map((nft) => (
-                <div key={`${nft.contractAddress}-${nft.tokenId}`}>
-                  {renderNftCard(nft)}
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {listedNfts.map((nft) => (
+                  <div key={`${nft.contractAddress}-${nft.tokenId}`}>
+                    {renderNftCard(nft)}
+                  </div>
+                ))}
+              </div>
+              {renderPagination(listedNfts.length, marketplacePage, handleMarketplacePageChange)}
+            </>
           ) : (
             <Alert className="bg-muted">
               <Info className="h-5 w-5" />
@@ -691,77 +799,113 @@ const NFTMarketplace: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="collections" className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {Array(3)
-                .fill(0)
-                .map((_, index) => (
-                  <Skeleton
-                    key={index}
-                    className="h-[200px] w-full rounded-lg"
-                  />
-                ))}
-            </div>
-          ) : collections.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {collections.map((collection) => (
-                <Card
-                  key={collection.id}
-                  className="overflow-hidden transition-all hover:shadow-md"
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-1 items-center space-x-2">
+                <Input
+                  placeholder="Search collection by address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCollectionSearch();
+                  }}
+                />
+                <Button
+                  onClick={handleCollectionSearch}
+                  disabled={isSearching || !searchQuery.trim()}
                 >
-                  <div className="relative h-32 w-full">
-                    {collection.bannerUrl ? (
-                      <img
-                        src={collection.bannerUrl}
-                        alt={collection.name}
-                        className="object-cover w-full h-full"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-gray-100">
-                        <Info className="h-12 w-12 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-4">
-                      <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-                        <AvatarImage src={collection.imageUrl} />
-                        <AvatarFallback>
-                          {collection.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle>{collection.name}</CardTitle>
-                        <CardDescription>
-                          {collection.itemCount} items
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0">
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        navigate(`/collections/${collection.address}`)
-                      }
-                    >
-                      View Collection
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+                  {isSearching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Search"
+                  )}
+                </Button>
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    onClick={clearCollectionSearch}
+                    disabled={isSearching}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
-          ) : (
-            <Alert className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>No Collections Available</AlertTitle>
-              <AlertDescription>
-                There are currently no NFT collections available. Check back
-                later!
-              </AlertDescription>
-            </Alert>
-          )}
+
+            {loading || isSearching ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {Array(3)
+                  .fill(0)
+                  .map((_, index) => (
+                    <Skeleton key={index} className="h-[200px] w-full rounded-lg" />
+                  ))}
+              </div>
+            ) : collections.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {collections.map((collection) => (
+                    <Card
+                      key={collection.id}
+                      className="overflow-hidden transition-all hover:shadow-md"
+                    >
+                      <div className="relative h-32 w-full">
+                        {collection.bannerUrl ? (
+                          <img
+                            src={collection.bannerUrl}
+                            alt={collection.name}
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                            <Info className="h-12 w-12 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <div className="flex items-center space-x-4">
+                          <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
+                            <AvatarImage src={collection.imageUrl} />
+                            <AvatarFallback>
+                              {collection.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <CardTitle>{collection.name}</CardTitle>
+                            <CardDescription>
+                              {collection.itemCount} items
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="p-4 pt-0">
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() =>
+                            navigate(`/collections/${collection.address}`)
+                          }
+                        >
+                          View Collection
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+                {renderPagination(totalCollections, currentPage, handlePageChange)}
+              </>
+            ) : (
+              <Alert className="mt-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>No Collections Available</AlertTitle>
+                <AlertDescription>
+                  {searchQuery
+                    ? "No collection found with that address."
+                    : "There are currently no NFT collections available. Check back later!"}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="myNfts">

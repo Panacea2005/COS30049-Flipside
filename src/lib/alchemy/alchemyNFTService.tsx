@@ -431,26 +431,41 @@ export const fetchCollectionInfo = async (
 };
 
 /**
- * Fetch popular NFT collections
+ * Fetch NFT collections with pagination from a broader set of known contracts
  */
 export const fetchNftCollections = async (
   network: string = "mainnet",
-  limit: number = 10
+  pageNumber: number = 1,
+  pageSize: number = 10
 ): Promise<NftCollection[]> => {
   try {
-    const popularCollections = network === "mainnet" ? [
-      "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D", // BAYC
-      "0x60E4d786628Fea6478F785A6d7e704777c86a7c6", // MAYC
-      "0xbd3531da5cf5857e7cfaa92426877b022e612cf8", // Pudgy Penguins
-      "0x34d85c9CDeB23FA97cb08333b511ac86E1C4E258", // Otherdeed
-      "0xED5AF388653567Af2F388E6224dC7C4b3241C544",  // Azuki
-      "0x8a90cab2b38dba80c64b7734e58ee1db38b8992e" //Doodles V4
-    ] : [
-      "0x5180DB8F5c931aAe63c74266b211F580155ecAC8"
-    ];
-    
+    // Expanded list of known contract addresses (replace with an API call in production)
+    const knownCollections = network === "mainnet"
+      ? [
+          "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D", // BAYC
+          "0x60E4d786628Fea6478F785A6d7e704777c86a7c6", // MAYC
+          "0xbd3531da5cf5857e7cfaa92426877b022e612cf8", // Pudgy Penguins
+          "0x34d85c9CDeB23FA97cb08333b511ac86E1C4E258", // Otherdeed
+          "0xED5AF388653567Af2F388E6224dC7C4b3241C544", // Azuki
+          "0x8a90cab2b38dba80c64b7734e58ee1db38b8992e", // Doodles V4
+          "0x49cF6f5d44E70224e2E23fDcdd2C053F30aDA28B", // CloneX
+          "0x1A92f7381B9F03921564a437210bB9396471050C", // Cool Cats
+          "0x7Bd29408f11D2bFC23c34f18275bBf23bB716Bc7", // Meebits
+          "0xb6a37b5d14d502c3ab0ae6f3a0e058bc9517786e", // Elemental
+          "0x6339e5e072086621540d0362c4e3cea0d643e114", // Opepen Edition
+          "0x524cab2ec69124574082676e6f654a18df49a048", //Lil Pudgys
+        ]
+      : [
+          "0x5180DB8F5c931aAe63c74266b211F580155ecAC8", // Testnet example
+        ];
+
+    // Pagination
+    const startIndex = (pageNumber - 1) * pageSize;
+    const paginatedAddresses = knownCollections.slice(startIndex, startIndex + pageSize);
+
+    // Fetch collection info for paginated addresses using fetchCollectionInfo
     const collections = await Promise.all(
-      popularCollections.slice(0, limit).map(async (address) => {
+      paginatedAddresses.map(async (address) => {
         try {
           return await fetchCollectionInfo(address, network);
         } catch (error) {
@@ -459,11 +474,41 @@ export const fetchNftCollections = async (
         }
       })
     );
-    
+
     return collections.filter(Boolean) as NftCollection[];
   } catch (err) {
     console.error("Error fetching NFT collections:", err);
     return [];
+  }
+};
+
+/**
+ * Fetch the total number of known collections
+ */
+export const fetchTotalCollectionsCount = async (
+  network: string = "mainnet"
+): Promise<number> => {
+  try {
+    const knownCollections = network === "mainnet"
+      ? [
+          "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+          "0x60E4d786628Fea6478F785A6d7e704777c86a7c6",
+          "0xbd3531da5cf5857e7cfaa92426877b022e612cf8",
+          "0x34d85c9CDeB23FA97cb08333b511ac86E1C4E258",
+          "0xED5AF388653567Af2F388E6224dC7C4b3241C544",
+          "0x8a90cab2b38dba80c64b7734e58ee1db38b8992e",
+          "0x49cF6f5d44E70224e2E23fDcdd2C053F30aDA28B",
+          "0x1A92f7381B9F03921564a437210bB9396471050C",
+          "0x7Bd29408f11D2bFC23c34f18275bBf23bB716Bc7",
+          "0x23581767a106ae21c074b2276D25e5C3e136a68b",
+        ]
+      : [
+          "0x5180DB8F5c931aAe63c74266b211F580155ecAC8",
+        ];
+    return knownCollections.length;
+  } catch (err) {
+    console.error("Error fetching total collections count:", err);
+    return 0;
   }
 };
 
