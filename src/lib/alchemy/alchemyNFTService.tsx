@@ -36,6 +36,7 @@ const MARKETPLACE_ADDRESSES = {
 
 // Define interfaces for NFT data
 export interface NftItem {
+  image: any;
   creator: string;
   tokenId: string;
   contractAddress: string;
@@ -56,6 +57,9 @@ export interface NftItem {
 }
 
 export interface NftCollection {
+  banner: any;
+  image: string;
+  nftCount: ReactNode;
   id: Key | null | undefined;
   address: string;
   name: string;
@@ -174,6 +178,7 @@ export const fetchUserNfts = async (
           const imageUrl = normalizeIpfsUrl(metadata?.image || nft.media?.[0]?.gateway || "");
 
           return {
+            image: metadata?.image || nft.media?.[0]?.gateway || "",
             creator: nft.contract.creator || "Unknown",
             tokenId: tokenId.startsWith('0x') ? tokenId.substring(2) : tokenId,
             contractAddress,
@@ -360,6 +365,7 @@ export const fetchNftDetails = async (
     const imageUrl = normalizeIpfsUrl(nft.metadata?.image || nft.media?.[0]?.gateway || "");
 
     return {
+      image: nft.metadata?.image || nft.media?.[0]?.gateway || "",
       creator: nft.contract.creator || "Unknown",
       tokenId: nft.id.tokenId.startsWith('0x') ? nft.id.tokenId.substring(2) : nft.id.tokenId,
       contractAddress,
@@ -411,7 +417,10 @@ export const fetchCollectionInfo = async (
       imageUrl: normalizeIpfsUrl(data.contractMetadata?.openSea?.imageUrl || ""),
       description: data.contractMetadata?.openSea?.description || "",
       itemCount: data.contractMetadata?.totalSupply || 0,
-      bannerUrl: normalizeIpfsUrl(data.contractMetadata?.openSea?.bannerImageUrl || "")
+      bannerUrl: normalizeIpfsUrl(data.contractMetadata?.openSea?.bannerImageUrl || ""),
+      banner: undefined,
+      image: '',
+      nftCount: undefined
     };
     
     return collection;
@@ -466,7 +475,7 @@ export const listNftForSale = async (
   tokenId: string,
   price: string,
   signer: Signer,
-  network: string = "mainnet"
+  network: string,
 ): Promise<boolean> => {
   try {
     if (!contractAddress || !tokenId || !price) {
