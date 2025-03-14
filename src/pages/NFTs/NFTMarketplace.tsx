@@ -57,6 +57,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Loader2, Info, AlertTriangle, CheckCircle2, Tag } from "lucide-react";
+import { MARKETPLACE_ADDRESSES } from "../../lib/alchemy/alchemyNFTService";
 
 const NFTMarketplace: React.FC = () => {
   const navigate = useNavigate();
@@ -99,6 +100,7 @@ const NFTMarketplace: React.FC = () => {
   const [minting, setMinting] = useState<boolean>(false);
   const [mintSuccess, setMintSuccess] = useState<boolean>(false);
   const [mintError, setMintError] = useState<string>("");
+  const [mintedTokenId, setMintedTokenId] = useState<string>("");
 
   // In useEffect for loading marketplace
   useEffect(() => {
@@ -380,54 +382,46 @@ const NFTMarketplace: React.FC = () => {
 
   const confirmPurchase = async () => {
     if (!selectedNft || !walletAddress) return;
-
+  
     setPurchasing(true);
     setPurchaseSuccess(false);
     setPurchaseError("");
-
+  
     try {
       if (!window.ethereum) {
         throw new Error("MetaMask not found. Please install MetaMask.");
       }
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-
+  
       const success = await buyNft(
         selectedNft.contractAddress,
         selectedNft.tokenId,
         signer,
         network
       );
-
+  
       if (success) {
-        const transactionCount = await provider.getTransactionCount(
-          walletAddress
-        );
-        const tx = await provider.getTransaction(
-          (transactionCount - 1).toString(16)
-        );
-        const transactionHash = tx ? tx.hash : "";
-
+        const txCount = await provider.getTransactionCount(walletAddress);
+        const tx = await provider.getTransaction((txCount - 1).toString(16));
+        const transactionHash = tx?.hash || "";
+  
         setPurchaseSuccess(true);
         setTxHash(transactionHash);
-
-        // Refresh NFT lists
-        const updatedNfts = await fetchListedNfts(network, 12);
+  
+        const [updatedNfts, updatedUserNfts] = await Promise.all([
+          fetchListedNfts(network, itemsPerPage),
+          fetchUserNfts(walletAddress, network),
+        ]);
         setListedNfts(updatedNfts);
-        const updatedUserNfts = await fetchUserNfts(walletAddress, network);
         setUserNfts(updatedUserNfts);
-
+  
         toast({
           title: "Purchase Successful",
           description: "You have successfully purchased the NFT!",
         });
       } else {
-        setPurchaseError("Transaction failed. Please try again.");
-        toast({
-          title: "Purchase Failed",
-          description: "Transaction failed. Please try again.",
-          variant: "destructive",
-        });
+        throw new Error("Transaction failed.");
       }
     } catch (error) {
       console.error("Error during purchase:", error);
@@ -656,6 +650,15 @@ const NFTMarketplace: React.FC = () => {
       return;
     }
 
+    if (listingPrice && parseFloat(listingPrice) <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid price greater than 0 ETH.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setMinting(true);
     setMintSuccess(false);
     setMintError("");
@@ -679,35 +682,32 @@ const NFTMarketplace: React.FC = () => {
         metadata,
         signer,
         network,
-        listingPrice
+        listingPrice // Pass the price as-is, even if empty
       );
 
       if (success) {
         setTxHash(txHash || "Transaction hash not available");
+        setMintedTokenId(tokenId);
         setMintSuccess(true);
 
-        // Wait for transaction confirmation and slight delay for indexing
-        await provider.waitForTransaction(txHash!, 1); // Wait for 1 confirmation
-        await new Promise((resolve) => setTimeout(resolve, 5000)); // 5-second delay for indexing
+        await provider.waitForTransaction(txHash!, 1);
+        await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for blockchain sync
 
-        // Refresh NFT lists
         const [updatedUserNfts, updatedListedNfts] = await Promise.all([
           fetchUserNfts(walletAddress, network),
           fetchListedNfts(network, itemsPerPage),
         ]);
         setUserNfts(updatedUserNfts);
-        if (listingPrice) {
-          setListedNfts(updatedListedNfts);
-        }
+        setListedNfts(updatedListedNfts); // Refresh Marketplace tab
 
         toast({
-          title: "NFT Minted",
-          description: `Your NFT "${listingName}" (tokenId: ${tokenId}) has been minted${
-            listingPrice ? " and listed" : ""
+          title: "NFT Minted and Listed",
+          description: `Your NFT "${listingName}" (Token ID: ${tokenId}) has been minted${
+            listingPrice ? ` and listed for ${listingPrice} ETH` : ""
           }!`,
         });
       } else {
-        throw new Error("Minting transaction failed.");
+        throw new Error("Minting or listing transaction failed.");
       }
     } catch (error) {
       console.error("Error during minting:", error);
@@ -721,6 +721,34 @@ const NFTMarketplace: React.FC = () => {
       });
     } finally {
       setMinting(false);
+    }
+  };
+
+  const handleRefreshNfts = async () => {
+    if (!walletAddress) return;
+
+    setLoadingUserNfts(true);
+    try {
+      const userNftsResult = await fetchUserNfts(walletAddress, network);
+      console.log("Refreshed user NFTs:", userNftsResult);
+      setUserNfts(userNftsResult);
+      if (userNftsResult.length === 0) {
+        toast({
+          title: "No NFTs Found",
+          description:
+            "No NFTs were found after refresh. Ensure the network is correct.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing user NFTs:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh your NFTs. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingUserNfts(false);
     }
   };
 
@@ -778,7 +806,20 @@ const NFTMarketplace: React.FC = () => {
     );
   };
 
-  const renderNftCard = (nft: NftItem, isUserNft: boolean = false) => {
+  const renderNftCard = (nft: NftItem) => {
+    const displayTokenId = nft.tokenId
+      ? isNaN(parseInt(nft.tokenId))
+        ? nft.tokenId
+        : parseInt(nft.tokenId, 16).toString()
+      : "Unknown";
+    const displayName =
+      nft.name && !nft.name.includes(`#${displayTokenId}`)
+        ? `${nft.name} #${displayTokenId}`
+        : nft.name || `NFT #${displayTokenId}`;
+
+    const isOwner =
+      walletAddress && nft.owner.toLowerCase() === walletAddress.toLowerCase();
+
     return (
       <Card className="overflow-hidden h-full flex flex-col">
         <CardHeader className="pb-2">
@@ -796,9 +837,7 @@ const NFTMarketplace: React.FC = () => {
               </AvatarFallback>
             </Avatar>
           </div>
-          <CardTitle className="text-lg truncate">
-            {nft.name || `NFT #${nft.tokenId}`}
-          </CardTitle>
+          <CardTitle className="text-lg truncate">{displayName}</CardTitle>
           <CardDescription className="truncate">
             {nft.collection?.name || "Unknown Collection"}
           </CardDescription>
@@ -808,7 +847,7 @@ const NFTMarketplace: React.FC = () => {
             {nft.imageUrl ? (
               <img
                 src={nft.imageUrl}
-                alt={nft.name || `NFT #${nft.tokenId}`}
+                alt={displayName}
                 className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
               />
             ) : (
@@ -820,36 +859,7 @@ const NFTMarketplace: React.FC = () => {
         </CardContent>
         <CardFooter className="pt-4 flex flex-col gap-2">
           {walletAddress ? (
-            isUserNft ? (
-              // Enhanced buttons for user's NFTs
-              <>
-                <Button
-                  onClick={() => handleListForSale(nft)}
-                  className="w-full"
-                  disabled={nft.isListed}
-                  variant={nft.isListed ? "outline" : "default"}
-                >
-                  {nft.isListed ? "Listed for Sale" : "List for Sale"}
-                </Button>
-                {nft.isListed && (
-                  <Button
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => {
-                      // Here you would add a function to cancel listing
-                      toast({
-                        title: "Feature Coming Soon",
-                        description:
-                          "Cancel listing feature will be available in the next update.",
-                      });
-                    }}
-                  >
-                    Cancel Listing
-                  </Button>
-                )}
-              </>
-            ) : (
-              // For marketplace NFTs (not owned by user)
+            <>
               <Button
                 onClick={() =>
                   navigate(
@@ -857,10 +867,32 @@ const NFTMarketplace: React.FC = () => {
                   )
                 }
                 className="w-full"
+                variant="outline"
               >
                 View Details
               </Button>
-            )
+              {isOwner ? (
+                <div className="text-center text-sm text-muted-foreground">
+                  You Own This
+                </div>
+              ) : nft.isListed ? (
+                <Button
+                  onClick={() => handlePurchase(nft)}
+                  className="w-full"
+                  disabled={purchasing}
+                >
+                  {purchasing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    `Purchase (${nft.price} ETH)`
+                  )}
+                </Button>
+              ) : (
+                <div className="text-center text-sm text-muted-foreground">
+                  Not For Sale
+                </div>
+              )}
+            </>
           ) : (
             <Button onClick={handleConnectWallet} className="w-full">
               Connect Wallet
@@ -1135,7 +1167,7 @@ const NFTMarketplace: React.FC = () => {
             </div>
             <p className="text-sm text-muted-foreground mt-2">
               Examples: "0xBC4CA0..." (contract), "0xBC4CA0... 123" (specific
-              NFT), or "Bored Ape" (name)
+              NFT), or "Azuki" (name)
             </p>
           </div>
           {loadingAllNfts || isSearchingNfts ? (
@@ -1184,10 +1216,32 @@ const NFTMarketplace: React.FC = () => {
 
         <TabsContent value="myNfts">
           {!walletAddress ? (
-            <Alert>{/* ... (existing wallet not connected alert) */}</Alert>
+            <Alert>
+              <AlertTitle>Wallet Not Connected</AlertTitle>
+              <AlertDescription>
+                Please connect your wallet to view your NFTs.
+              </AlertDescription>
+            </Alert>
           ) : loadingUserNfts ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {/* ... (existing loading skeletons) */}
+              {/* Loading Skeletons */}
+              {Array(4)
+                .fill(0)
+                .map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full mt-2" />
+                      <Skeleton className="h-4 w-3/4 mt-2" />
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Skeleton className="h-[200px] w-full" />
+                    </CardContent>
+                    <CardFooter className="pt-4">
+                      <Skeleton className="h-10 w-full" />
+                    </CardFooter>
+                  </Card>
+                ))}
             </div>
           ) : (
             <>
@@ -1202,12 +1256,7 @@ const NFTMarketplace: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setLoadingUserNfts(true);
-                      fetchUserNfts(walletAddress, network)
-                        .then(setUserNfts)
-                        .finally(() => setLoadingUserNfts(false));
-                    }}
+                    onClick={handleRefreshNfts}
                     disabled={loadingUserNfts}
                   >
                     {loadingUserNfts ? (
@@ -1228,8 +1277,18 @@ const NFTMarketplace: React.FC = () => {
               {userNfts.length > 0 ? (
                 <>
                   <Tabs defaultValue="all" className="w-full">
-                    {/* ... (existing filter tabs) */}
+                    {/* Tabs for filtering user NFTs */}
+                    {/* Add your existing filter tabs here */}
                   </Tabs>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {userNfts.map((nft) => (
+                      <div key={`${nft.contractAddress}-${nft.tokenId}`}>
+                        {renderNftCard(nft)}{" "}
+                        {/* Existing renderNftCard function */}
+                      </div>
+                    ))}
+                  </div>
                 </>
               ) : (
                 <Alert className="bg-muted">
@@ -1374,7 +1433,20 @@ const NFTMarketplace: React.FC = () => {
                 <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 <AlertTitle>Minting Successful!</AlertTitle>
                 <AlertDescription>
-                  Your NFT "{listingName}" has been minted
+                  Your NFT "{listingName}" (Token ID:
+                  <a
+                    href={`/collections/${
+                      MARKETPLACE_ADDRESSES[
+                        network as keyof typeof MARKETPLACE_ADDRESSES
+                      ]
+                    }/nfts/${mintedTokenId}`}
+                    className="text-blue-600 hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {mintedTokenId}
+                  </a>
+                  ) has been minted
                   {listingPrice ? ` and listed for ${listingPrice} ETH` : ""}.
                 </AlertDescription>
               </Alert>

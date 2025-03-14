@@ -93,33 +93,37 @@ const NFTDetails: React.FC = () => {
 
   useEffect(() => {
     const loadNftData = async () => {
-      if (!collectionId || !tokenId) return;
+      if (!collectionId || !tokenId) {
+        console.warn("Missing collectionId or tokenId");
+        return;
+      }
   
+      console.log(`Loading NFT - collectionId: ${collectionId}, tokenId: ${tokenId}, network: ${network}`);
       setLoading(true);
       try {
         const nftItem = await fetchNftDetails(collectionId, tokenId, network);
-  
-        if (nftItem) {
-          // Map NftItem to NFTDetails
-          const nftDetails: NFTDetails = {
-            id: nftItem.tokenId, // or other mapping logic
-            tokenId: nftItem.tokenId,
-            name: nftItem.name,
-            description: nftItem.metadata?.description || "",
-            imageUrl: nftItem.imageUrl,
-            tokenStandard: "ERC721", // or whichever standard you need
-            owner: nftItem.owner,
-            creator: nftItem.creator,
-            collection: nftItem.collection || { name: "Unknown", address: "" },
-            attributes: nftItem.metadata?.attributes || [],
-            history: [], // Map history data if available
-            acquiredAt: "", // Add appropriate field
-            lastUpdated: "", // Add appropriate field
-            royalties: "", // Add royalties logic
-          };
-  
-          setNft(nftDetails);
+        console.log("fetchNftDetails result:", nftItem);
+        if (!nftItem) {
+          throw new Error("NFT data not found");
         }
+  
+        const nftDetails: NFTDetails = {
+          id: nftItem.tokenId,
+          tokenId: nftItem.tokenId,
+          name: nftItem.name,
+          description: nftItem.metadata?.description || "",
+          imageUrl: nftItem.imageUrl,
+          tokenStandard: "ERC721",
+          owner: nftItem.owner,
+          creator: nftItem.creator,
+          collection: nftItem.collection || { name: "Unknown", address: collectionId },
+          attributes: nftItem.metadata?.attributes || [],
+          history: [],
+          acquiredAt: "",
+          lastUpdated: new Date().toISOString(),
+          royalties: "",
+        };
+        setNft(nftDetails);
       } catch (error) {
         console.error("Error loading NFT details:", error);
         toast({
@@ -134,7 +138,6 @@ const NFTDetails: React.FC = () => {
   
     loadNftData();
   }, [collectionId, tokenId, network]);
-  
 
   const handleCopyAddress = (address: string, key: string) => {
     navigator.clipboard.writeText(address);
