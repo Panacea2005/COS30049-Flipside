@@ -699,14 +699,15 @@ const CryptoExchangePage = () => {
     }, 5000);
   };
 
+  // Return statement with enhanced UI
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 sm:p-6">
-      <div className="max-w-4xl mx-auto mt-12 sm:mt-16 px-4">
-        <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm overflow-hidden rounded-2xl">
-          <CardHeader className="space-y-4 sm:space-y-6 pb-4 sm:pb-8 bg-gradient-to-r from-purple-100 to-pink-100">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
+      <div className="max-w-4xl mx-auto mt-8 sm:mt-12 px-4">
+        <Card className="border border-gray-100 shadow-lg bg-white overflow-hidden rounded-xl">
+          <CardHeader className="space-y-4 sm:space-y-6 pb-4 sm:pb-6 bg-gray-50 border-b border-gray-100">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-              <CardTitle className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center">
-                <Coins className="h-8 w-8 mr-2 text-purple-500" />
+              <CardTitle className="text-3xl sm:text-4xl font-bold text-gray-800 flex items-center">
+                <Coins className="h-8 w-8 mr-2 text-blue-500" />
                 Crypto Exchange
               </CardTitle>
               {connected ? (
@@ -724,7 +725,7 @@ const CryptoExchangePage = () => {
                   </Badge>
                   <Button
                     variant="outline"
-                    className="group relative overflow-hidden border-2 hover:border-purple-500 transition-colors duration-300 bg-white"
+                    className="group relative overflow-hidden border hover:border-blue-500 transition-colors duration-300 bg-white"
                     onClick={() =>
                       window.open(
                         `https://etherscan.io/address/${userAddress}`,
@@ -733,19 +734,18 @@ const CryptoExchangePage = () => {
                     }
                   >
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500" />
+                      <div className="w-6 h-6 rounded-full bg-blue-500" />
                       <span className="font-medium text-xs sm:text-sm">
                         {userAddress.slice(0, 6)}...{userAddress.slice(-4)}
                       </span>
                       <ExternalLink className="w-4 h-4" />
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                   </Button>
                 </div>
               ) : (
                 <Button
                   onClick={connectWallet}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 rounded-full px-6"
+                  className="bg-blue-500 hover:bg-blue-600 text-white shadow-md transition-all duration-300 rounded-lg px-6"
                 >
                   <Wallet className="mr-2 h-5 w-5" />
                   Connect Wallet
@@ -754,38 +754,37 @@ const CryptoExchangePage = () => {
             </div>
 
             <Tabs defaultValue="sepolia" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 p-1 bg-gray-100/80 rounded-lg">
+              <TabsList className="grid w-full grid-cols-2 p-1 bg-gray-100 rounded-lg">
                 <TabsTrigger
                   value="mainnet"
                   onClick={() => switchNetwork(NETWORKS.MAINNET)}
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 rounded-md"
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-300 rounded-md"
                 >
                   Mainnet
                 </TabsTrigger>
                 <TabsTrigger
                   value="sepolia"
                   onClick={() => switchNetwork(NETWORKS.SEPOLIA)}
-                  className="data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 rounded-md"
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-300 rounded-md"
                 >
                   Sepolia
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-8 p-4 sm:p-8">
+          <CardContent className="space-y-6 p-6">
             {error && (
-              <Alert
-                variant="destructive"
-                className="border-red-200 bg-red-50 animate-pulse"
-              >
+              <Alert variant="destructive" className="border-red-200 bg-red-50">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="font-medium">
                   {error}
                 </AlertDescription>
               </Alert>
             )}
-            <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 sm:p-8 rounded-xl shadow-inner">
-              <div className="space-y-2">
+
+            {/* Swap section */}
+            <div className="space-y-4 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+              <div className="space-y-3">
                 <label className="text-sm font-medium text-gray-700 flex items-center">
                   <span>From</span>
                   <span className="ml-auto text-xs text-gray-500">
@@ -803,7 +802,7 @@ const CryptoExchangePage = () => {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full sm:w-[160px] bg-white rounded-xl">
+                    <SelectTrigger className="w-full sm:w-[160px] bg-white rounded-lg border border-gray-200">
                       <SelectValue placeholder="Select token">
                         {fromToken && <TokenDisplay token={fromToken} />}
                       </SelectValue>
@@ -825,14 +824,14 @@ const CryptoExchangePage = () => {
                     placeholder="0.0"
                     value={fromAmount}
                     onChange={(e) => setFromAmount(e.target.value)}
-                    className="flex-1 bg-white border-2 focus:border-purple-500 transition-colors duration-300 rounded-xl"
+                    className="flex-1 bg-white border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-300 rounded-lg"
                     min="0"
                     step="0.000000000000000001"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-center my-2">
+              <div className="flex justify-center my-4">
                 <Button
                   variant="outline"
                   size="icon"
@@ -843,14 +842,14 @@ const CryptoExchangePage = () => {
                     setFromAmount("");
                     setToAmount("");
                   }}
-                  className="rounded-full w-12 h-12 border-2 hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 bg-white shadow-md"
+                  className="rounded-full w-10 h-10 border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 bg-white shadow-sm"
                   disabled={!fromToken || !toToken}
                 >
-                  <ArrowDownUp className="h-6 w-6 text-purple-500" />
+                  <ArrowDownUp className="h-5 w-5 text-blue-500" />
                 </Button>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-sm font-medium text-gray-700 flex items-center">
                   <span>To</span>
                   <span className="ml-auto text-xs text-gray-500">
@@ -868,7 +867,7 @@ const CryptoExchangePage = () => {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full sm:w-[160px] bg-white rounded-xl">
+                    <SelectTrigger className="w-full sm:w-[160px] bg-white rounded-lg border border-gray-200">
                       <SelectValue placeholder="Select token">
                         {toToken && <TokenDisplay token={toToken} />}
                       </SelectValue>
@@ -890,48 +889,53 @@ const CryptoExchangePage = () => {
                     placeholder="0.0"
                     value={toAmount}
                     readOnly
-                    className="flex-1 bg-gray-50 border-2 rounded-xl"
+                    className="flex-1 bg-gray-50 border border-gray-200 rounded-lg"
                   />
                 </div>
               </div>
+
+              {fromToken && toToken && fromAmount && toAmount && (
+                <div className="text-sm text-gray-600 text-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="font-medium">Rate:</span> 1{" "}
+                  {fromToken.symbol} ={" "}
+                  <span className="text-blue-600 font-semibold">
+                    {(Number(toAmount) / Number(fromAmount)).toFixed(6)}
+                  </span>{" "}
+                  {toToken.symbol}
+                </div>
+              )}
+
+              <Button
+                className="w-full h-12 text-base font-medium bg-blue-500 hover:bg-blue-600 text-white transition-all duration-300 shadow-sm rounded-lg mt-2"
+                onClick={handleSwap}
+                disabled={
+                  !connected || !fromAmount || loading || !fromToken || !toToken
+                }
+              >
+                {!connected ? (
+                  "Connect Wallet to Swap"
+                ) : loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                    Swapping...
+                  </div>
+                ) : (
+                  "Swap"
+                )}
+              </Button>
             </div>
 
-            <Button
-              className="w-full h-14 text-lg font-medium bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-300 hover:shadow-lg rounded-xl shadow-md"
-              onClick={handleSwap}
-              disabled={
-                !connected || !fromAmount || loading || !fromToken || !toToken
-              }
-            >
-              {!connected ? (
-                "Connect Wallet to Swap"
-              ) : loading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                  Swapping...
-                </div>
-              ) : (
-                "Swap"
-              )}
-            </Button>
-            {fromToken && toToken && fromAmount && toAmount && (
-              <div className="text-sm text-gray-600 text-center bg-gradient-to-r from-purple-50 to-pink-50 p-3 sm:p-4 rounded-xl shadow-inner">
-                <span className="font-medium">Rate:</span> 1 {fromToken.symbol}{" "}
-                ={" "}
-                <span className="text-purple-600 font-semibold">
-                  {(Number(toAmount) / Number(fromAmount)).toFixed(6)}
-                </span>{" "}
-                {toToken.symbol}
-              </div>
-            )}
-
-            <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-md">
+            {/* Fund Contract section */}
+            <div className="space-y-4 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
               <div className="flex flex-col sm:flex-row items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-700 flex items-center">
-                  <Coins className="h-5 w-5 mr-2 text-purple-500" />
+                  <Coins className="h-5 w-5 mr-2 text-blue-500" />
                   Fund Contract
                 </h3>
-                <Badge variant="outline" className="bg-purple-100">
+                <Badge
+                  variant="outline"
+                  className="bg-blue-50 text-blue-600 border-blue-200"
+                >
                   Custom Tokens Only
                 </Badge>
               </div>
@@ -944,7 +948,7 @@ const CryptoExchangePage = () => {
                     setSelectedDepositToken(token || null);
                   }}
                 >
-                  <SelectTrigger className="w-full bg-white rounded-xl">
+                  <SelectTrigger className="w-full bg-white rounded-lg border border-gray-200">
                     <SelectValue placeholder="Select token">
                       {selectedDepositToken && (
                         <TokenDisplay token={selectedDepositToken} />
@@ -967,7 +971,7 @@ const CryptoExchangePage = () => {
                   placeholder="Amount to deposit"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
-                  className="w-full bg-white rounded-xl"
+                  className="w-full bg-white rounded-lg border border-gray-200"
                 />
 
                 <Button
@@ -984,17 +988,19 @@ const CryptoExchangePage = () => {
                     setDepositAmount("");
                   }}
                   disabled={!selectedDepositToken || !depositAmount || loading}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl"
+                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
                 >
                   <Coins className="mr-2 h-4 w-4" />
                   Deposit
                 </Button>
               </div>
             </div>
+
+            {/* Custom Token and Rate settings */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-md">
+              <div className="space-y-4 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                 <h3 className="font-semibold text-gray-700 flex items-center">
-                  <span className="w-6 h-6 rounded-full bg-purple-500 text-white flex items-center justify-center mr-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center mr-2">
                     +
                   </span>
                   Add Custom Token
@@ -1005,7 +1011,7 @@ const CryptoExchangePage = () => {
                     placeholder="Token contract address"
                     value={customTokenAddress}
                     onChange={(e) => setCustomTokenAddress(e.target.value)}
-                    className="flex-1 bg-white rounded-xl"
+                    className="flex-1 bg-white rounded-lg border border-gray-200"
                   />
                   <Button
                     onClick={async () => {
@@ -1048,7 +1054,7 @@ const CryptoExchangePage = () => {
                       }
                     }}
                     disabled={loading || !customTokenAddress}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl"
+                    className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
                   >
                     {loading ? (
                       <div className="flex items-center">
@@ -1062,9 +1068,9 @@ const CryptoExchangePage = () => {
                 </div>
               </div>
 
-              <div className="space-y-4 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-md">
+              <div className="space-y-4 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
                 <h3 className="font-semibold text-gray-700 flex items-center">
-                  <ArrowDownUp className="h-5 w-5 mr-2 text-purple-500" />
+                  <ArrowDownUp className="h-5 w-5 mr-2 text-blue-500" />
                   Custom Exchange Rate
                 </h3>
                 <div className="flex items-center">
@@ -1073,10 +1079,10 @@ const CryptoExchangePage = () => {
                     placeholder="Enter rate (e.g. 1.23)"
                     value={customExchangeRate}
                     onChange={(e) => setCustomExchangeRate(e.target.value)}
-                    className="w-full bg-white rounded-xl"
+                    className="w-full bg-white rounded-lg border border-gray-200"
                   />
                   <Button
-                    className="ml-3 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl"
+                    className="ml-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg"
                     onClick={() => {
                       setCustomExchangeRate("");
                       showSuccessNotification("Custom exchange rate cleared!");
