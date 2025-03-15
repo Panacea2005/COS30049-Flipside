@@ -42,9 +42,12 @@ contract NFTMarketplace is ERC721, Ownable {
     function listItem(uint256 tokenId, uint256 price) external {
         require(price > 0, "Price must be greater than zero");
         require(ownerOf(tokenId) == msg.sender, "Only owner can list");
-        require(getApproved(tokenId) == address(0), "NFT is already approved");
 
-        approve(address(this), tokenId); // Approve marketplace to transfer on purchase
+        address approved = getApproved(tokenId);
+        if (approved != address(this)) {
+            approve(address(this), tokenId); // Approve marketplace only if not already approved
+        }
+
         listings[tokenId] = Listing({
             seller: msg.sender,
             price: price,
@@ -65,7 +68,7 @@ contract NFTMarketplace is ERC721, Ownable {
         (bool sent, ) = listing.seller.call{value: listing.price}("");
         require(sent, "Failed to send ETH to seller");
 
-        _transfer(listing.seller, msg.sender, tokenId); // Transfer NFT to buyer
+        _transfer(listing.seller, msg.sender, tokenId);
 
         if (msg.value > listing.price) {
             (bool refunded, ) = msg.sender.call{value: msg.value - listing.price}("");
@@ -81,7 +84,7 @@ contract NFTMarketplace is ERC721, Ownable {
         require(listing.seller == msg.sender, "Only seller can cancel");
 
         listings[tokenId].active = false;
-        _approve(address(0), tokenId, address(0)); // Revoke approval, no auth needed
+        _approve(address(0), tokenId, address(0)); // Revoke approval
 
         emit ListingCancelled(tokenId, msg.sender);
     }

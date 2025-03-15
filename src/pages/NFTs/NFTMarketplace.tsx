@@ -205,7 +205,64 @@ const NFTMarketplace: React.FC = () => {
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       };
     }
-  }, [walletAddress, itemsPerPage]); // Update dependencies
+  }, [walletAddress, itemsPerPage]);
+
+  const refreshCollections = async () => {
+    setLoading(true);
+    try {
+      const collectionsResult = await fetchNftCollections(
+        network,
+        currentPage,
+        itemsPerPage
+      );
+      setCollections(collectionsResult);
+      const total = await fetchTotalCollectionsCount(network);
+      setTotalCollections(total);
+      toast({
+        title: "Refreshed",
+        description: "Collections have been refreshed.",
+      });
+    } catch (error) {
+      console.error("Error refreshing collections:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh collections. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // New refresh function for all NFTs
+  const refreshAllNfts = async () => {
+    setLoadingAllNfts(true);
+    setIsSearchingNfts(true);
+    try {
+      const { nfts, totalCount } = await fetchAllNetworkNfts(
+        network,
+        nftsPage,
+        itemsPerPage,
+        nftSearchQuery
+      );
+      setAllNfts(nfts);
+      setTotalNftsCount(totalCount);
+      toast({
+        title: "Refreshed",
+        description: "NFTs have been refreshed.",
+      });
+    } catch (error) {
+      console.error("Error refreshing all NFTs:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh NFTs. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingAllNfts(false);
+      setIsSearchingNfts(false);
+    }
+  };
 
   // Check MetaMask connection
   useEffect(() => {
@@ -866,548 +923,450 @@ const NFTMarketplace: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 mt-16 gap-4">
-        <h1 className="text-3xl font-bold">NFT Marketplace</h1>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Select value={network} onValueChange={handleNetworkChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select Network" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="mainnet">Ethereum Mainnet</SelectItem>
-              <SelectItem value="sepolia">Sepolia Testnet</SelectItem>
-            </SelectContent>
-          </Select>
+    <div className="min-h-screen">
+    {/* Banner with increased height and improved text positioning */}
+    <div
+      className="relative w-full h-96 bg-cover bg-center text-white flex items-center justify-center"
+      style={{ backgroundImage: "url('/eth-bg.jpg')" }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
 
-          {walletAddress ? (
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarFallback className="text-xs">
-                    {walletAddress.substring(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden md:inline">
-                  {walletAddress.substring(0, 6)}...
-                  {walletAddress.substring(38)}
-                </span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDisconnectWallet}
-              >
-                <span className="sr-only">Disconnect wallet</span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={handleConnectWallet}>Connect Wallet</Button>
-          )}
-        </div>
+      <div className="relative z-10 text-center px-6 max-w-4xl w-full mt-8">
+        <h1 className="text-7xl md:text-9xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600">
+          FlipVerse
+        </h1>
+
+        <p className="mt-2 text-xl md:text-2xl font-medium tracking-wide text-white/90 uppercase">
+          Powered by Flipside <span className="text-cyan-400">×</span> Alchemy
+        </p>
       </div>
+    </div>
 
-      <Tabs defaultValue="allNfts">
-        <TabsList className="mb-6">
-          <TabsTrigger value="collections">Collections</TabsTrigger>
-          <TabsTrigger value="allNfts">NFTs</TabsTrigger>
-          <TabsTrigger value="myNfts">My NFTs</TabsTrigger>
-        </TabsList>
+    {/* Marketplace Content with reduced top margin */}
+    <div className="container mx-auto px-4 py-4">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 mt-6 gap-4">
+        <h1 className="text-3xl font-bold">NFT Marketplace</h1>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Select value={network} onValueChange={handleNetworkChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select Network" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mainnet">Ethereum Mainnet</SelectItem>
+                <SelectItem value="sepolia">Sepolia Testnet</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <TabsContent value="collections" className="mt-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex flex-1 items-center space-x-2">
+            {walletAddress ? (
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-xs">
+                      {walletAddress.substring(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden md:inline">
+                    {walletAddress.substring(0, 6)}...
+                    {walletAddress.substring(38)}
+                  </span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDisconnectWallet}
+                >
+                  <span className="sr-only">Disconnect wallet</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={handleConnectWallet}>Connect Wallet</Button>
+            )}
+          </div>
+        </div>
+
+        <Tabs defaultValue="allNfts">
+          <TabsList className="mb-6">
+            <TabsTrigger value="collections">Collections</TabsTrigger>
+            <TabsTrigger value="allNfts">NFTs</TabsTrigger>
+            <TabsTrigger value="myNfts">My NFTs</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="collections" className="mt-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex flex-1 items-center space-x-2">
+                  <Input
+                    placeholder="Search collection by address..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCollectionSearch();
+                    }}
+                  />
+                  <Button
+                    onClick={handleCollectionSearch}
+                    disabled={isSearching || !searchQuery.trim()}
+                  >
+                    {isSearching ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Search"
+                    )}
+                  </Button>
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      onClick={clearCollectionSearch}
+                      disabled={isSearching}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={refreshCollections}
+                    disabled={loading || isSearching}
+                  >
+                    {loading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      "Refresh"
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {loading || isSearching ? (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array(3)
+                    .fill(0)
+                    .map((_, index) => (
+                      <Skeleton
+                        key={index}
+                        className="h-[200px] w-full rounded-lg"
+                      />
+                    ))}
+                </div>
+              ) : collections.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {collections.map((collection) => (
+                      <Card
+                        key={collection.id}
+                        className="overflow-hidden transition-all hover:shadow-md"
+                      >
+                        <div className="relative h-32 w-full">
+                          {collection.bannerUrl ? (
+                            <img
+                              src={collection.bannerUrl}
+                              alt={collection.name}
+                              className="object-cover w-full h-full"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                              <Info className="h-12 w-12 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-4">
+                            <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
+                              <AvatarImage src={collection.imageUrl} />
+                              <AvatarFallback>
+                                {collection.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <CardTitle>{collection.name}</CardTitle>
+                              <CardDescription>
+                                {collection.itemCount} items
+                              </CardDescription>
+                            </div>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="p-4 pt-0">
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() =>
+                              navigate(`/collections/${collection.address}`)
+                            }
+                          >
+                            View Collection
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                  {renderPagination(
+                    totalCollections,
+                    currentPage,
+                    handlePageChange
+                  )}
+                </>
+              ) : (
+                <Alert className="mt-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>No Collections Available</AlertTitle>
+                  <AlertDescription>
+                    {searchQuery
+                      ? "No collection found with that address."
+                      : "There are currently no NFT collections available. Check back later!"}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="allNfts">
+            <div className="mb-6">
+              <div className="flex items-center space-x-2">
                 <Input
-                  placeholder="Search collection by address..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by contract (0x...), contract + token ID (0x... 123), or name"
+                  value={nftSearchQuery}
+                  onChange={(e) => setNftSearchQuery(e.target.value)}
                   className="flex-1"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCollectionSearch();
+                    if (e.key === "Enter") {
+                      setNftsPage(1);
+                    }
                   }}
                 />
                 <Button
-                  onClick={handleCollectionSearch}
-                  disabled={isSearching || !searchQuery.trim()}
+                  onClick={() => setNftsPage(1)}
+                  disabled={isSearchingNfts}
                 >
-                  {isSearching ? (
+                  {isSearchingNfts ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     "Search"
                   )}
                 </Button>
-                {searchQuery && (
+                {nftSearchQuery && (
                   <Button
                     variant="ghost"
-                    onClick={clearCollectionSearch}
-                    disabled={isSearching}
+                    onClick={() => {
+                      setNftSearchQuery("");
+                      setNftsPage(1);
+                    }}
+                    disabled={isSearchingNfts}
                   >
                     Clear
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  onClick={refreshAllNfts}
+                  disabled={loadingAllNfts || isSearchingNfts}
+                >
+                  {loadingAllNfts ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    "Refresh"
+                  )}
+                </Button>
               </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Examples: "0xBC4CA0..." (contract), "0xBC4CA0... 123" (specific
+                NFT), or "Azuki" (name)
+              </p>
             </div>
-
-            {loading || isSearching ? (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {Array(3)
+            {loadingAllNfts || isSearchingNfts ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                {Array(10)
                   .fill(0)
-                  .map((_, index) => (
-                    <Skeleton
-                      key={index}
-                      className="h-[200px] w-full rounded-lg"
-                    />
-                  ))}
-              </div>
-            ) : collections.length > 0 ? (
-              <>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {collections.map((collection) => (
-                    <Card
-                      key={collection.id}
-                      className="overflow-hidden transition-all hover:shadow-md"
-                    >
-                      <div className="relative h-32 w-full">
-                        {collection.bannerUrl ? (
-                          <img
-                            src={collection.bannerUrl}
-                            alt={collection.name}
-                            className="object-cover w-full h-full"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-gray-100">
-                            <Info className="h-12 w-12 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      <CardContent className="p-4">
-                        <div className="flex items-center space-x-4">
-                          <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-                            <AvatarImage src={collection.imageUrl} />
-                            <AvatarFallback>
-                              {collection.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <CardTitle>{collection.name}</CardTitle>
-                            <CardDescription>
-                              {collection.itemCount} items
-                            </CardDescription>
-                          </div>
-                        </div>
+                  .map((_, i) => (
+                    <Card key={i} className="overflow-hidden">
+                      <CardHeader className="pb-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-6 w-full mt-2" />
+                        <Skeleton className="h-4 w-3/4 mt-2" />
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <Skeleton className="h-[200px] w-full" />
                       </CardContent>
-                      <CardFooter className="p-4 pt-0">
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          onClick={() =>
-                            navigate(`/collections/${collection.address}`)
-                          }
-                        >
-                          View Collection
-                        </Button>
+                      <CardFooter className="pt-4">
+                        <Skeleton className="h-10 w-full" />
                       </CardFooter>
                     </Card>
                   ))}
+              </div>
+            ) : allNfts.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  {allNfts.map((nft) => (
+                    <div key={`${nft.contractAddress}-${nft.tokenId}`}>
+                      {renderNftCard(nft)}
+                    </div>
+                  ))}
                 </div>
                 {renderPagination(
-                  totalCollections,
-                  currentPage,
-                  handlePageChange
+                  totalNftsCount,
+                  nftsPage,
+                  handleNftsPageChange
                 )}
               </>
             ) : (
-              <Alert className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>No Collections Available</AlertTitle>
+              <Alert className="bg-muted">
+                <Info className="h-5 w-5" />
+                <AlertTitle>No NFTs Found</AlertTitle>
                 <AlertDescription>
-                  {searchQuery
-                    ? "No collection found with that address."
-                    : "There are currently no NFT collections available. Check back later!"}
+                  {nftSearchQuery
+                    ? "No NFTs match your search. Try a contract address (0x...), contract + token ID (0x... 123), or name."
+                    : "No NFTs from popular collections are available on this network."}
                 </AlertDescription>
               </Alert>
             )}
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="allNfts">
-          <div className="mb-6">
-            <div className="flex items-center space-x-2">
-              <Input
-                placeholder="Search by contract (0x...), contract + token ID (0x... 123), or name"
-                value={nftSearchQuery}
-                onChange={(e) => setNftSearchQuery(e.target.value)}
-                className="flex-1"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setNftsPage(1);
-                  }
-                }}
-              />
-              <Button onClick={() => setNftsPage(1)} disabled={isSearchingNfts}>
-                {isSearchingNfts ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Search"
-                )}
-              </Button>
-              {nftSearchQuery && (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setNftSearchQuery("");
-                    setNftsPage(1);
-                  }}
-                  disabled={isSearchingNfts}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Examples: "0xBC4CA0..." (contract), "0xBC4CA0... 123" (specific
-              NFT), or "Azuki" (name)
-            </p>
-          </div>
-          {loadingAllNfts || isSearchingNfts ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-              {Array(10)
-                .fill(0)
-                .map((_, i) => (
-                  <Card key={i} className="overflow-hidden">
-                    <CardHeader className="pb-2">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-6 w-full mt-2" />
-                      <Skeleton className="h-4 w-3/4 mt-2" />
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <Skeleton className="h-[200px] w-full" />
-                    </CardContent>
-                    <CardFooter className="pt-4">
-                      <Skeleton className="h-10 w-full" />
-                    </CardFooter>
-                  </Card>
-                ))}
-            </div>
-          ) : allNfts.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                {allNfts.map((nft) => (
-                  <div key={`${nft.contractAddress}-${nft.tokenId}`}>
-                    {renderNftCard(nft)}
-                  </div>
-                ))}
-              </div>
-              {renderPagination(totalNftsCount, nftsPage, handleNftsPageChange)}
-            </>
-          ) : (
-            <Alert className="bg-muted">
-              <Info className="h-5 w-5" />
-              <AlertTitle>No NFTs Found</AlertTitle>
-              <AlertDescription>
-                {nftSearchQuery
-                  ? "No NFTs match your search. Try a contract address (0x...), contract + token ID (0x... 123), or name."
-                  : "No NFTs from popular collections are available on this network."}
-              </AlertDescription>
-            </Alert>
-          )}
-        </TabsContent>
-
-        <TabsContent value="myNfts">
-          {!walletAddress ? (
-            <Alert>
-              <AlertTitle>Wallet Not Connected</AlertTitle>
-              <AlertDescription>
-                Please connect your wallet to view your NFTs.
-              </AlertDescription>
-            </Alert>
-          ) : loadingUserNfts ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {Array(4)
-                .fill(0)
-                .map((_, i) => (
-                  <Card key={i} className="overflow-hidden">
-                    <CardHeader className="pb-2">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-6 w-full mt-2" />
-                      <Skeleton className="h-4 w-3/4 mt-2" />
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <Skeleton className="h-[200px] w-full" />
-                    </CardContent>
-                    <CardFooter className="pt-4">
-                      <Skeleton className="h-10 w-full" />
-                    </CardFooter>
-                  </Card>
-                ))}
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-xl font-semibold">Your NFTs</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Manage your NFT collection
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshNfts}
-                    disabled={loadingUserNfts}
-                  >
-                    {loadingUserNfts ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Refreshing...
-                      </>
-                    ) : (
-                      "Refresh NFTs"
-                    )}
-                  </Button>
-                  <Button onClick={handleMintNFT} size="sm">
-                    Mint NFT
-                  </Button>
-                </div>
-              </div>
-
-              {userNfts.length > 0 ? (
-                <>
-                  <Tabs defaultValue="all" className="w-full">
-                    {/* Tabs for filtering user NFTs */}
-                  </Tabs>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {userNfts.map((nft) => (
-                      <div key={`${nft.contractAddress}-${nft.tokenId}`}>
-                        {renderNftCard(nft)}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <Alert className="bg-muted">
-                  <Info className="h-5 w-5" />
-                  <AlertTitle>No NFTs Found</AlertTitle>
-                  <AlertDescription>
-                    You don't own any NFTs on the current network. Mint one now!
-                  </AlertDescription>
-                </Alert>
-              )}
-            </>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* Purchase NFT Dialog */}
-      <Dialog open={openPurchaseDialog} onOpenChange={setOpenPurchaseDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Purchase NFT</DialogTitle>
-            <DialogDescription>
-              You are about to purchase{" "}
-              <span className="font-bold">
-                {selectedNft?.name || `NFT #${selectedNft?.tokenId}`}
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-
-          {purchaseSuccess ? (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <AlertTitle>Purchase Successful!</AlertTitle>
-                <AlertDescription>
-                  You have successfully purchased this NFT.
-                </AlertDescription>
-              </Alert>
-              {txHash && (
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Transaction Hash:</p>
-                  <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
-                    {txHash}
-                  </pre>
-                </div>
-              )}
-            </div>
-          ) : purchaseError ? (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-5 w-5" />
-              <AlertTitle>Purchase Failed</AlertTitle>
-              <AlertDescription>{purchaseError}</AlertDescription>
-            </Alert>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="rounded-lg overflow-hidden w-24 h-24">
-                  {selectedNft?.image ? (
-                    <img
-                      src={selectedNft.image}
-                      alt={selectedNft.name || `NFT #${selectedNft.tokenId}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                      <Info className="h-8 w-8 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-medium">
-                    {selectedNft?.name || `NFT #${selectedNft?.tokenId}`}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {typeof selectedNft?.collection === "string"
-                      ? selectedNft.collection
-                      : "Unknown Collection"}
-                  </p>
-                  <div className="flex items-center mt-1">
-                    <Tag className="h-4 w-4 mr-1" />
-                    <span className="font-medium text-primary">
-                      {selectedNft?.price} ETH
-                    </span>
-                  </div>
-                </div>
-              </div>
-
+          <TabsContent value="myNfts">
+            {!walletAddress ? (
               <Alert>
-                <Info className="h-5 w-5" />
-                <AlertTitle>Transaction Information</AlertTitle>
+                <AlertTitle>Wallet Not Connected</AlertTitle>
                 <AlertDescription>
-                  You will be asked to confirm this transaction in your wallet.
-                  Network fees will apply.
+                  Please connect your wallet to view your NFTs.
                 </AlertDescription>
               </Alert>
-            </div>
-          )}
-
-          <DialogFooter>
-            {purchaseSuccess ? (
-              <Button onClick={closePurchaseDialog}>Close</Button>
-            ) : purchaseError ? (
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={closePurchaseDialog}>
-                  Cancel
-                </Button>
-                <Button onClick={confirmPurchase}>Try Again</Button>
+            ) : loadingUserNfts ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {Array(4)
+                  .fill(0)
+                  .map((_, i) => (
+                    <Card key={i} className="overflow-hidden">
+                      <CardHeader className="pb-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-6 w-full mt-2" />
+                        <Skeleton className="h-4 w-3/4 mt-2" />
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <Skeleton className="h-[200px] w-full" />
+                      </CardContent>
+                      <CardFooter className="pt-4">
+                        <Skeleton className="h-10 w-full" />
+                      </CardFooter>
+                    </Card>
+                  ))}
               </div>
             ) : (
-              <div className="flex space-x-2 w-full justify-between sm:justify-end">
-                <Button variant="outline" onClick={closePurchaseDialog}>
-                  Cancel
-                </Button>
-                <Button onClick={confirmPurchase} disabled={purchasing}>
-                  {purchasing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    `Buy for ${selectedNft?.price} ETH`
-                  )}
-                </Button>
-              </div>
+              <>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold">Your NFTs</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Manage your NFT collection
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleMintNFT} size="sm">
+                      Mint NFT
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefreshNfts}
+                      disabled={loadingUserNfts}
+                    >
+                      {loadingUserNfts ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Refreshing...
+                        </>
+                      ) : (
+                        "Refresh"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {userNfts.length > 0 ? (
+                  <>
+                    <Tabs defaultValue="all" className="w-full">
+                      {/* Tabs for filtering user NFTs */}
+                    </Tabs>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {userNfts.map((nft) => (
+                        <div key={`${nft.contractAddress}-${nft.tokenId}`}>
+                          {renderNftCard(nft)}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <Alert className="bg-muted">
+                    <Info className="h-5 w-5" />
+                    <AlertTitle>No NFTs Found</AlertTitle>
+                    <AlertDescription>
+                      You don't own any NFTs on the current network. Mint one
+                      now!
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </TabsContent>
+        </Tabs>
 
-      <Dialog open={openListingDialog} onOpenChange={setOpenListingDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedNft ? "List NFT for Sale" : "Mint New NFT"}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedNft
-                ? "Set a price to list your NFT for sale."
-                : "Upload an image and fill in details to mint your NFT."}
-            </DialogDescription>
-          </DialogHeader>
+        {/* Purchase NFT Dialog */}
+        <Dialog open={openPurchaseDialog} onOpenChange={setOpenPurchaseDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Purchase NFT</DialogTitle>
+              <DialogDescription>
+                You are about to purchase{" "}
+                <span className="font-bold">
+                  {selectedNft?.name || `NFT #${selectedNft?.tokenId}`}
+                </span>
+              </DialogDescription>
+            </DialogHeader>
 
-          {mintSuccess ? (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <AlertTitle>Minting Successful!</AlertTitle>
-                <AlertDescription>
-                  Your NFT "{listingName}" (Token ID:
-                  <a
-                    href={`/collections/${
-                      MARKETPLACE_ADDRESSES[
-                        network as keyof typeof MARKETPLACE_ADDRESSES
-                      ]
-                    }/nfts/${mintedTokenId}`}
-                    className="text-blue-600 hover:underline"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {mintedTokenId}
-                  </a>
-                  ) has been minted
-                  {listingPrice ? ` and listed for ${listingPrice} ETH` : ""}.
-                </AlertDescription>
+            {purchaseSuccess ? (
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <AlertTitle>Purchase Successful!</AlertTitle>
+                  <AlertDescription>
+                    You have successfully purchased this NFT.
+                  </AlertDescription>
+                </Alert>
+                {txHash && (
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Transaction Hash:</p>
+                    <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
+                      {txHash}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ) : purchaseError ? (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>Purchase Failed</AlertTitle>
+                <AlertDescription>{purchaseError}</AlertDescription>
               </Alert>
-              {txHash && (
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Transaction Hash:</p>
-                  <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
-                    {txHash}
-                  </pre>
-                </div>
-              )}
-            </div>
-          ) : listingSuccess ? (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <AlertTitle>Listing Successful!</AlertTitle>
-                <AlertDescription>
-                  Your NFT has been listed for {listingPrice} ETH!
-                </AlertDescription>
-              </Alert>
-              {txHash && (
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Transaction Hash:</p>
-                  <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
-                    {txHash}
-                  </pre>
-                </div>
-              )}
-            </div>
-          ) : mintError || listingError ? (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-5 w-5" />
-              <AlertTitle>
-                {mintError ? "Minting Failed" : "Listing Failed"}
-              </AlertTitle>
-              <AlertDescription>{mintError || listingError}</AlertDescription>
-            </Alert>
-          ) : (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-              {!selectedNft && (
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="rounded-lg overflow-hidden w-32 h-32 border">
-                    {listingImagePreview ? (
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-4">
+                  <div className="rounded-lg overflow-hidden w-24 h-24">
+                    {selectedNft?.image ? (
                       <img
-                        src={listingImagePreview}
-                        alt="NFT Preview"
+                        src={selectedNft.image}
+                        alt={selectedNft.name || `NFT #${selectedNft.tokenId}`}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -1416,143 +1375,292 @@ const NFTMarketplace: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <Label htmlFor="nft-image" className="cursor-pointer">
-                    <div className="flex items-center space-x-2 text-sm text-primary">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
-                        <line x1="16" y1="5" x2="22" y2="5" />
-                        <line x1="19" y1="2" x2="19" y2="8" />
-                        <circle cx="9" cy="9" r="2" />
-                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                      </svg>
-                      <span>Upload Image</span>
+                  <div>
+                    <h3 className="font-medium">
+                      {selectedNft?.name || `NFT #${selectedNft?.tokenId}`}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {typeof selectedNft?.collection === "string"
+                        ? selectedNft.collection
+                        : "Unknown Collection"}
+                    </p>
+                    <div className="flex items-center mt-1">
+                      <Tag className="h-4 w-4 mr-1" />
+                      <span className="font-medium text-primary">
+                        {selectedNft?.price} ETH
+                      </span>
                     </div>
-                  </Label>
-                  <input
-                    id="nft-image"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
+                  </div>
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={listingName}
-                  onChange={(e) => setListingName(e.target.value)}
-                  placeholder="My Awesome NFT"
-                  disabled={!!selectedNft}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <textarea
-                  id="description"
-                  value={listingDescription}
-                  onChange={(e) => setListingDescription(e.target.value)}
-                  placeholder="Describe your NFT..."
-                  className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="price">
-                  {selectedNft
-                    ? "List Price (ETH)"
-                    : "List Price (ETH, optional)"}
-                </Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.001"
-                  min="0"
-                  placeholder="0.00"
-                  value={listingPrice}
-                  onChange={(e) => setListingPrice(e.target.value)}
-                />
-              </div>
-
-              <Alert>
-                <Info className="h-5 w-5" />
-                <AlertTitle>
-                  {selectedNft ? "Listing" : "Minting"} Information
-                </AlertTitle>
-                <AlertDescription>
-                  Your NFT will be {selectedNft ? "listed" : "minted"} on{" "}
-                  {network === "mainnet"
-                    ? "Ethereum Mainnet"
-                    : "Sepolia Testnet"}
-                  . Network fees will apply.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          <DialogFooter>
-            {mintSuccess || listingSuccess ? (
-              <Button onClick={closeListingDialog}>Close</Button>
-            ) : mintError || listingError ? (
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={closeListingDialog}>
-                  Cancel
-                </Button>
-                <Button onClick={selectedNft ? confirmListing : confirmMint}>
-                  Try Again
-                </Button>
-              </div>
-            ) : (
-              <div className="flex space-x-2 w-full justify-between sm:justify-end">
-                <Button variant="outline" onClick={closeListingDialog}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={selectedNft ? confirmListing : confirmMint}
-                  disabled={
-                    (selectedNft ? listing : minting) ||
-                    !listingName.trim() ||
-                    (!selectedNft && !listingImage) ||
-                    (selectedNft && !listingPrice) ||
-                    false
-                  }
-                >
-                  {selectedNft ? (
-                    listing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Listing...
-                      </>
-                    ) : (
-                      "List NFT"
-                    )
-                  ) : minting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Minting...
-                    </>
-                  ) : (
-                    "Mint NFT"
-                  )}
-                </Button>
+                <Alert>
+                  <Info className="h-5 w-5" />
+                  <AlertTitle>Transaction Information</AlertTitle>
+                  <AlertDescription>
+                    You will be asked to confirm this transaction in your
+                    wallet. Network fees will apply.
+                  </AlertDescription>
+                </Alert>
               </div>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+            <DialogFooter>
+              {purchaseSuccess ? (
+                <Button onClick={closePurchaseDialog}>Close</Button>
+              ) : purchaseError ? (
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={closePurchaseDialog}>
+                    Cancel
+                  </Button>
+                  <Button onClick={confirmPurchase}>Try Again</Button>
+                </div>
+              ) : (
+                <div className="flex space-x-2 w-full justify-between sm:justify-end">
+                  <Button variant="outline" onClick={closePurchaseDialog}>
+                    Cancel
+                  </Button>
+                  <Button onClick={confirmPurchase} disabled={purchasing}>
+                    {purchasing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      `Buy for ${selectedNft?.price} ETH`
+                    )}
+                  </Button>
+                </div>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={openListingDialog} onOpenChange={setOpenListingDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedNft ? "List NFT for Sale" : "Mint New NFT"}
+              </DialogTitle>
+              <DialogDescription>
+                {selectedNft
+                  ? "Set a price to list your NFT for sale."
+                  : "Upload an image and fill in details to mint your NFT."}
+              </DialogDescription>
+            </DialogHeader>
+
+            {mintSuccess ? (
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <AlertTitle>Minting Successful!</AlertTitle>
+                  <AlertDescription>
+                    Your NFT "{listingName}" (Token ID:
+                    <a
+                      href={`/collections/${
+                        MARKETPLACE_ADDRESSES[
+                          network as keyof typeof MARKETPLACE_ADDRESSES
+                        ]
+                      }/nfts/${mintedTokenId}`}
+                      className="text-blue-600 hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {mintedTokenId}
+                    </a>
+                    ) has been minted
+                    {listingPrice ? ` and listed for ${listingPrice} ETH` : ""}.
+                  </AlertDescription>
+                </Alert>
+                {txHash && (
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Transaction Hash:</p>
+                    <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
+                      {txHash}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ) : listingSuccess ? (
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+                <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <AlertTitle>Listing Successful!</AlertTitle>
+                  <AlertDescription>
+                    Your NFT has been listed for {listingPrice} ETH!
+                  </AlertDescription>
+                </Alert>
+                {txHash && (
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Transaction Hash:</p>
+                    <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
+                      {txHash}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ) : mintError || listingError ? (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>
+                  {mintError ? "Minting Failed" : "Listing Failed"}
+                </AlertTitle>
+                <AlertDescription>{mintError || listingError}</AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+                {!selectedNft && (
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="rounded-lg overflow-hidden w-32 h-32 border">
+                      {listingImagePreview ? (
+                        <img
+                          src={listingImagePreview}
+                          alt="NFT Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+                          <Info className="h-8 w-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    <Label htmlFor="nft-image" className="cursor-pointer">
+                      <div className="flex items-center space-x-2 text-sm text-primary">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
+                          <line x1="16" y1="5" x2="22" y2="5" />
+                          <line x1="19" y1="2" x2="19" y2="8" />
+                          <circle cx="9" cy="9" r="2" />
+                          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                        </svg>
+                        <span>Upload Image</span>
+                      </div>
+                    </Label>
+                    <input
+                      id="nft-image"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageChange}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={listingName}
+                    onChange={(e) => setListingName(e.target.value)}
+                    placeholder="My Awesome NFT"
+                    disabled={!!selectedNft}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <textarea
+                    id="description"
+                    value={listingDescription}
+                    onChange={(e) => setListingDescription(e.target.value)}
+                    placeholder="Describe your NFT..."
+                    className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="price">
+                    {selectedNft
+                      ? "List Price (ETH)"
+                      : "List Price (ETH, optional)"}
+                  </Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    placeholder="0.00"
+                    value={listingPrice}
+                    onChange={(e) => setListingPrice(e.target.value)}
+                  />
+                </div>
+
+                <Alert>
+                  <Info className="h-5 w-5" />
+                  <AlertTitle>
+                    {selectedNft ? "Listing" : "Minting"} Information
+                  </AlertTitle>
+                  <AlertDescription>
+                    Your NFT will be {selectedNft ? "listed" : "minted"} on{" "}
+                    {network === "mainnet"
+                      ? "Ethereum Mainnet"
+                      : "Sepolia Testnet"}
+                    . Network fees will apply.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            <DialogFooter>
+              {mintSuccess || listingSuccess ? (
+                <Button onClick={closeListingDialog}>Close</Button>
+              ) : mintError || listingError ? (
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={closeListingDialog}>
+                    Cancel
+                  </Button>
+                  <Button onClick={selectedNft ? confirmListing : confirmMint}>
+                    Try Again
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex space-x-2 w-full justify-between sm:justify-end">
+                  <Button variant="outline" onClick={closeListingDialog}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={selectedNft ? confirmListing : confirmMint}
+                    disabled={
+                      (selectedNft ? listing : minting) ||
+                      !listingName.trim() ||
+                      (!selectedNft && !listingImage) ||
+                      (selectedNft && !listingPrice) ||
+                      false
+                    }
+                  >
+                    {selectedNft ? (
+                      listing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Listing...
+                        </>
+                      ) : (
+                        "List NFT"
+                      )
+                    ) : minting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Minting...
+                      </>
+                    ) : (
+                      "Mint NFT"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };

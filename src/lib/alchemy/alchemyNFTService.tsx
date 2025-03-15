@@ -60,7 +60,7 @@ const MARKETPLACE_ABI = [
 // Configure marketplace contract addresses
 export const MARKETPLACE_ADDRESSES = {
   mainnet: "0x00000000006c3852cbEf3e08E8dF289169EdE581", // OpenSea Seaport
-  sepolia: "0x1658d08c779aca7a272bc589881a44886c4c6748", // Testnet marketplace
+  sepolia: "0x26941f46d8a4c308d95d89272f92692b02047dae", // Testnet marketplace
 };
 
 // Define interfaces for NFT data
@@ -444,7 +444,7 @@ export const fetchCollectionInfo = async (
     let collectionName = data.contractMetadata?.name || "Unknown Collection";
     if (
       contractAddress.toLowerCase() ===
-      "0x1658d08c779aca7a272bc589881a44886c4c6748".toLowerCase()
+      "0x26941f46d8a4c308d95d89272f92692b02047dae".toLowerCase()
     ) {
       collectionName = "NFT Marketplace Collection";
     }
@@ -503,7 +503,7 @@ export const fetchNftCollections = async (
             "0x6339e5e072086621540d0362c4e3cea0d643e114", // Opepen Edition
             "0x524cab2ec69124574082676e6f654a18df49a048", // Lil Pudgys
           ]
-        : ["0x1658d08c779aca7a272bc589881a44886c4c6748"];
+        : ["0x26941f46d8a4c308d95d89272f92692b02047dae"];
 
     // Pagination
     const startIndex = (pageNumber - 1) * pageSize;
@@ -552,7 +552,7 @@ export const fetchTotalCollectionsCount = async (
             "0x7Bd29408f11D2bFC23c34f18275bBf23bB716Bc7",
             "0x23581767a106ae21c074b2276D25e5C3e136a68b",
           ]
-        : ["0x1658d08c779aca7a272bc589881a44886c4c6748"];
+        : ["0x26941f46d8a4c308d95d89272f92692b02047dae"];
     return knownCollections.length;
   } catch (err) {
     console.error("Error fetching total collections count:", err);

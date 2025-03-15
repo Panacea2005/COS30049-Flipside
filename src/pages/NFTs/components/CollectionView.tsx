@@ -60,7 +60,7 @@ const CollectionView: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(12);
+  const [pageSize] = useState<number>(12);
   const [sortBy, setSortBy] = useState<string>("tokenId");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selectedAttributes, setSelectedAttributes] = useState<
