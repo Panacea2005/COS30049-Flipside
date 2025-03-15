@@ -569,7 +569,7 @@ export const listNftForSale = async (
   price: string,
   signer: Signer,
   network: string
-): Promise<boolean> => {
+): Promise<{ success: boolean; txHash?: string; error?: string }> => {
   try {
     console.log("listNftForSale called", { contractAddress, tokenId, price, network });
     if (!contractAddress || !tokenId || !price) throw new Error("Missing required parameters");
@@ -583,13 +583,14 @@ export const listNftForSale = async (
 
     const priceInWei = parseEther(price);
     const listTx = await marketplace.listItem(formattedTokenId, priceInWei);
-    await listTx.wait();
+    await listTx.wait(); // Wait for the transaction to be mined
 
-    console.log("NFT listed successfully");
-    return true;
+    console.log("NFT listed successfully, tx hash:", listTx.hash);
+    return { success: true, txHash: listTx.hash };
   } catch (err) {
     console.error("Error listing NFT for sale:", err);
-    return false;
+    const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+    return { success: false, error: errorMessage };
   }
 };
 
@@ -597,10 +598,10 @@ export const listNftForSale = async (
  * Buy an NFT from the marketplace
  */
 export const buyNft = async (
-  tokenId: string, // Simplified to only need tokenId since contractAddress is marketplace
+  tokenId: string,
   signer: Signer,
   network: string = "mainnet"
-): Promise<boolean> => {
+): Promise<{ success: boolean; txHash?: string; error?: string }> => {
   try {
     if (!tokenId) throw new Error("Token ID is required");
 
@@ -611,13 +612,14 @@ export const buyNft = async (
     if (!listing.active) throw new Error("This NFT is not listed for sale");
 
     const buyTx = await marketplace.buyItem(formattedTokenId, { value: listing.price });
-    await buyTx.wait();
+    await buyTx.wait(); // Wait for the transaction to be mined
 
     console.log("NFT purchased successfully, tx hash:", buyTx.hash);
-    return true;
+    return { success: true, txHash: buyTx.hash };
   } catch (err) {
     console.error("Error buying NFT:", err);
-    return false;
+    const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+    return { success: false, error: errorMessage };
   }
 };
 
@@ -823,31 +825,22 @@ export const fetchAllNetworkNfts = async (
   network: string = "mainnet",
   pageNumber: number = 1,
   pageSize: number = 20,
-  searchQuery: string = "" // Search parameter
+  searchQuery: string = ""
 ): Promise<{ nfts: NftItem[]; totalCount: number }> => {
   try {
     const provider = getProvider(network);
     const marketplaceAddress =
       MARKETPLACE_ADDRESSES[network as keyof typeof MARKETPLACE_ADDRESSES];
-    const marketplace = new Contract(
-      marketplaceAddress,
-      MARKETPLACE_ABI,
-      provider
-    );
+    const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, provider);
 
     if (searchQuery) {
       const query = searchQuery.trim().toLowerCase();
 
-      // Case 1: Search by contract address (e.g., "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D")
+      // Case 1: Search by contract address
       if (query.startsWith("0x") && query.length === 42) {
-        const endpoint = `${
-          NETWORK_URLS[network as keyof typeof NETWORK_URLS]
-        }/getNFTsForCollection?contractAddress=${query}&withMetadata=true&limit=${pageSize}&startToken=${
-          (pageNumber - 1) * pageSize
-        }`;
+        const endpoint = `${NETWORK_URLS[network as keyof typeof NETWORK_URLS]}/getNFTsForCollection?contractAddress=${query}&withMetadata=true&limit=${pageSize}&startToken=${(pageNumber - 1) * pageSize}`;
         const response = await fetch(endpoint);
-        if (!response.ok)
-          throw new Error(`Alchemy API error: ${response.statusText}`);
+        if (!response.ok) throw new Error(`Alchemy API error: ${response.statusText}`);
         const data = await response.json();
 
         if (!data.nfts || !Array.isArray(data.nfts)) {
@@ -865,25 +858,18 @@ export const fetchAllNetworkNfts = async (
             let price = "0";
             let isListed = false;
             try {
-              const listing = await marketplace.getListing(
-                contractAddress,
-                tokenId
-              );
+              const listing = await marketplace.getListing(tokenId); // Corrected to single parameter
               isListed = listing.active;
-              price = formatEther(listing.price);
+              price = isListed ? formatEther(listing.price) : "0";
             } catch (error) {
-              isListed = false;
+              console.log(`No listing found for token ${tokenId}:`, error);
             }
 
-            const imageUrl = normalizeIpfsUrl(
-              nft.metadata?.image || nft.media?.[0]?.gateway || ""
-            );
+            const imageUrl = normalizeIpfsUrl(nft.metadata?.image || nft.media?.[0]?.gateway || "");
 
             return {
               creator: nft.contract?.creator || "Unknown",
-              tokenId: tokenId.startsWith("0x")
-                ? tokenId.substring(2)
-                : tokenId,
+              tokenId: tokenId.startsWith("0x") ? tokenId.substring(2) : tokenId,
               contractAddress,
               name: nft.metadata?.name || nft.title || `NFT #${tokenId}`,
               symbol: collection?.symbol || "NFT",
@@ -905,7 +891,7 @@ export const fetchAllNetworkNfts = async (
         };
       }
 
-      // Case 2: Search by contract address and token ID (e.g., "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D 123")
+      // Case 2: Search by contract address and token ID
       const [contractPart, tokenPart] = query.split(" ");
       if (
         contractPart?.startsWith("0x") &&
@@ -913,34 +899,23 @@ export const fetchAllNetworkNfts = async (
         tokenPart &&
         !isNaN(parseInt(tokenPart))
       ) {
-        const tokenId = parseInt(tokenPart).toString(16); // Convert to hex
-        const formattedTokenId = tokenId.startsWith("0x")
-          ? tokenId
-          : `0x${tokenId}`;
-        const nft = await fetchNftDetails(
-          contractPart,
-          formattedTokenId,
-          network
-        );
+        const tokenId = parseInt(tokenPart).toString(16);
+        const formattedTokenId = tokenId.startsWith("0x") ? tokenId : `0x${tokenId}`;
+        const nft = await fetchNftDetails(contractPart, formattedTokenId, network);
         return {
           nfts: nft ? [nft] : [],
           totalCount: nft ? 1 : 0,
         };
       }
 
-      // Case 3: Search by name (client-side filtering from popular collections or external API)
-      // Since Alchemy doesn't support name search, we'll fetch from popular collections and filter
+      // Case 3: Search by name
       const collections = await fetchNftCollections(network, 1, 1000);
       const allNfts: NftItem[] = [];
       const perCollectionLimit = 50;
 
       await Promise.all(
         collections.map(async (collection) => {
-          const endpoint = `${
-            NETWORK_URLS[network as keyof typeof NETWORK_URLS]
-          }/getNFTsForCollection?contractAddress=${
-            collection.address
-          }&withMetadata=true&limit=${perCollectionLimit}`;
+          const endpoint = `${NETWORK_URLS[network as keyof typeof NETWORK_URLS]}/getNFTsForCollection?contractAddress=${collection.address}&withMetadata=true&limit=${perCollectionLimit}`;
           const response = await fetch(endpoint);
           if (!response.ok) return;
 
@@ -955,25 +930,18 @@ export const fetchAllNetworkNfts = async (
               let price = "0";
               let isListed = false;
               try {
-                const listing = await marketplace.getListing(
-                  contractAddress,
-                  tokenId
-                );
+                const listing = await marketplace.getListing(tokenId); // Corrected to single parameter
                 isListed = listing.active;
-                price = formatEther(listing.price);
+                price = isListed ? formatEther(listing.price) : "0";
               } catch (error) {
-                isListed = false;
+                console.log(`No listing found for token ${tokenId}:`, error);
               }
 
-              const imageUrl = normalizeIpfsUrl(
-                nft.metadata?.image || nft.media?.[0]?.gateway || ""
-              );
+              const imageUrl = normalizeIpfsUrl(nft.metadata?.image || nft.media?.[0]?.gateway || "");
 
               const nftItem: NftItem = {
                 creator: nft.contract?.creator || "Unknown",
-                tokenId: tokenId.startsWith("0x")
-                  ? tokenId.substring(2)
-                  : tokenId,
+                tokenId: tokenId.startsWith("0x") ? tokenId.substring(2) : tokenId,
                 contractAddress,
                 name: nft.metadata?.name || nft.title || `NFT #${tokenId}`,
                 symbol: collection.symbol || "NFT",
@@ -987,11 +955,8 @@ export const fetchAllNetworkNfts = async (
                 image: imageUrl,
               };
 
-              // Filter by name or token ID
               const nameMatch = nftItem.name.toLowerCase().includes(query);
-              const tokenIdMatch = parseInt(nftItem.tokenId, 16)
-                .toString()
-                .includes(query);
+              const tokenIdMatch = parseInt(nftItem.tokenId, 16).toString().includes(query);
               return nameMatch || tokenIdMatch ? nftItem : null;
             })
           );
@@ -1016,14 +981,9 @@ export const fetchAllNetworkNfts = async (
       await Promise.all(
         collections.map(async (collection) => {
           try {
-            const endpoint = `${
-              NETWORK_URLS[network as keyof typeof NETWORK_URLS]
-            }/getNFTsForCollection?contractAddress=${
-              collection.address
-            }&withMetadata=true&limit=${perCollectionLimit}`;
+            const endpoint = `${NETWORK_URLS[network as keyof typeof NETWORK_URLS]}/getNFTsForCollection?contractAddress=${collection.address}&withMetadata=true&limit=${perCollectionLimit}`;
             const response = await fetch(endpoint);
-            if (!response.ok)
-              throw new Error(`Alchemy API error: ${response.statusText}`);
+            if (!response.ok) throw new Error(`Alchemy API error: ${response.statusText}`);
             const data = await response.json();
 
             if (!data.nfts || !Array.isArray(data.nfts)) return;
@@ -1036,25 +996,18 @@ export const fetchAllNetworkNfts = async (
                 let price = "0";
                 let isListed = false;
                 try {
-                  const listing = await marketplace.getListing(
-                    contractAddress,
-                    tokenId
-                  );
+                  const listing = await marketplace.getListing(tokenId); // Corrected to single parameter
                   isListed = listing.active;
-                  price = formatEther(listing.price);
+                  price = isListed ? formatEther(listing.price) : "0";
                 } catch (error) {
-                  isListed = false;
+                  console.log(`No listing found for token ${tokenId}:`, error);
                 }
 
-                const imageUrl = normalizeIpfsUrl(
-                  nft.metadata?.image || nft.media?.[0]?.gateway || ""
-                );
+                const imageUrl = normalizeIpfsUrl(nft.metadata?.image || nft.media?.[0]?.gateway || "");
 
                 return {
                   creator: nft.contract?.creator || "Unknown",
-                  tokenId: tokenId.startsWith("0x")
-                    ? tokenId.substring(2)
-                    : tokenId,
+                  tokenId: tokenId.startsWith("0x") ? tokenId.substring(2) : tokenId,
                   contractAddress,
                   name: nft.metadata?.name || nft.title || `NFT #${tokenId}`,
                   symbol: collection.symbol || "NFT",
@@ -1072,10 +1025,7 @@ export const fetchAllNetworkNfts = async (
 
             allNfts.push(...(collectionNfts.filter(Boolean) as NftItem[]));
           } catch (error) {
-            console.error(
-              `Error processing collection ${collection.address}:`,
-              error
-            );
+            console.error(`Error processing collection ${collection.address}:`, error);
           }
         })
       );

@@ -80,10 +80,8 @@ const NFTMarketplace: React.FC = () => {
   const [listingPrice, setListingPrice] = useState<string>("");
   const [listingName, setListingName] = useState<string>("");
   const [listingDescription, setListingDescription] = useState<string>("");
-  const [listingCollection, setListingCollection] = useState<string>("");
   const [listingImage, setListingImage] = useState<File | null>(null);
   const [listingImagePreview, setListingImagePreview] = useState<string>("");
-  const [isNewCollection, setIsNewCollection] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(20);
@@ -365,12 +363,8 @@ const NFTMarketplace: React.FC = () => {
     setListingPrice("0.0001"); // Default value for testing
     setListingName(nft.name || `NFT #${nft.tokenId}`);
     setListingDescription("");
-    setListingCollection(
-      typeof nft.collection === "string" ? nft.collection : ""
-    );
     setListingImage(null);
     setListingImagePreview(nft.image || "");
-    setIsNewCollection(false);
     setListingSuccess(false);
     setListingError("");
     setOpenListingDialog(true);
@@ -390,29 +384,23 @@ const NFTMarketplace: React.FC = () => {
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      // Updated buyNft call to match new signature (no contractAddress)
-      const success = await buyNft(selectedNft.tokenId, signer, network);
-
-      if (success) {
-        const txCount = await provider.getTransactionCount(walletAddress);
-        const tx = await provider.getTransaction((txCount - 1).toString(16));
-        const transactionHash = tx?.hash || "";
-
-        setPurchaseSuccess(true);
-        setTxHash(transactionHash);
-
-        const [updatedUserNfts] = await Promise.all([
-          fetchUserNfts(walletAddress, network),
-        ]);
-        setUserNfts(updatedUserNfts);
-
-        toast({
-          title: "Purchase Successful",
-          description: "You have successfully purchased the NFT!",
-        });
-      } else {
-        throw new Error("Transaction failed.");
+      // Call buyNft and get the detailed result
+      const result = await buyNft(selectedNft.tokenId, signer, network);
+      if (!result.success) {
+        throw new Error(result.error || "Transaction failed.");
       }
+
+      setPurchaseSuccess(true);
+      setTxHash(result.txHash || "");
+
+      // Refresh user NFTs after purchase
+      const updatedUserNfts = await fetchUserNfts(walletAddress, network);
+      setUserNfts(updatedUserNfts);
+
+      toast({
+        title: "Purchase Successful",
+        description: "You have successfully purchased the NFT!",
+      });
     } catch (error) {
       console.error("Error during purchase:", error);
       const errorMessage =
@@ -461,7 +449,7 @@ const NFTMarketplace: React.FC = () => {
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
-      const success = await listNftForSale(
+      const result = await listNftForSale(
         selectedNft.contractAddress,
         selectedNft.tokenId,
         listingPrice,
@@ -469,40 +457,34 @@ const NFTMarketplace: React.FC = () => {
         network
       );
 
-      if (success) {
-        const transactionCount = await provider.getTransactionCount(
-          walletAddress
+      if (!result.success) {
+        throw new Error(
+          result.error || "Transaction failed. Please try again."
         );
-        const tx = await provider.getTransaction(
-          (transactionCount - 1).toString(16)
-        );
-        const transactionHash = tx ? tx.hash : "";
-
-        setListingSuccess(true);
-        setTxHash(transactionHash);
-
-        // Update NFT state immediately
-        const updatedUserNfts = userNfts.map((nft) =>
-          nft.tokenId === selectedNft.tokenId &&
-          nft.contractAddress === selectedNft.contractAddress
-            ? { ...nft, isListed: true, price: listingPrice }
-            : nft
-        );
-        setUserNfts(updatedUserNfts);
-
-        // Refresh marketplace and user NFTs
-        const [refreshedUserNfts] = await Promise.all([
-          fetchUserNfts(walletAddress, network),
-        ]);
-        setUserNfts(refreshedUserNfts);
-
-        toast({
-          title: "NFT Listed Successfully",
-          description: `Your NFT has been listed for ${listingPrice} ETH!`,
-        });
-      } else {
-        throw new Error("Transaction failed. Please try again.");
       }
+
+      setListingSuccess(true);
+      setTxHash(result.txHash || "");
+
+      // Update NFT state immediately
+      const updatedUserNfts = userNfts.map((nft) =>
+        nft.tokenId === selectedNft.tokenId &&
+        nft.contractAddress === selectedNft.contractAddress
+          ? { ...nft, isListed: true, price: listingPrice }
+          : nft
+      );
+      setUserNfts(updatedUserNfts);
+
+      // Refresh marketplace and user NFTs
+      const [refreshedUserNfts] = await Promise.all([
+        fetchUserNfts(walletAddress, network),
+      ]);
+      setUserNfts(refreshedUserNfts);
+
+      toast({
+        title: "NFT Listed Successfully",
+        description: `Your NFT has been listed for ${listingPrice} ETH!`,
+      });
     } catch (error) {
       console.error("Error during listing:", error);
       const errorMessage =
@@ -533,10 +515,8 @@ const NFTMarketplace: React.FC = () => {
     setListingPrice("");
     setListingName("");
     setListingDescription("");
-    setListingCollection("");
     setListingImage(null);
     setListingImagePreview("");
-    setIsNewCollection(false);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -599,7 +579,6 @@ const NFTMarketplace: React.FC = () => {
     setListingPrice("");
     setListingName("");
     setListingDescription("");
-    setListingCollection("");
     setListingImage(null);
     setListingImagePreview("");
     setMintSuccess(false);
@@ -1238,7 +1217,7 @@ const NFTMarketplace: React.FC = () => {
 
       {/* Purchase NFT Dialog */}
       <Dialog open={openPurchaseDialog} onOpenChange={setOpenPurchaseDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Purchase NFT</DialogTitle>
             <DialogDescription>
@@ -1250,7 +1229,7 @@ const NFTMarketplace: React.FC = () => {
           </DialogHeader>
 
           {purchaseSuccess ? (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
                 <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 <AlertTitle>Purchase Successful!</AlertTitle>
@@ -1261,9 +1240,9 @@ const NFTMarketplace: React.FC = () => {
               {txHash && (
                 <div className="text-sm">
                   <p className="font-medium mb-1">Transaction Hash:</p>
-                  <code className="bg-muted p-2 rounded block overflow-x-auto">
+                  <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
                     {txHash}
-                  </code>
+                  </pre>
                 </div>
               )}
             </div>
@@ -1349,9 +1328,8 @@ const NFTMarketplace: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Mint/List NFT Dialog */}
       <Dialog open={openListingDialog} onOpenChange={setOpenListingDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {selectedNft ? "List NFT for Sale" : "Mint New NFT"}
@@ -1364,7 +1342,7 @@ const NFTMarketplace: React.FC = () => {
           </DialogHeader>
 
           {mintSuccess ? (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
                 <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 <AlertTitle>Minting Successful!</AlertTitle>
@@ -1389,14 +1367,14 @@ const NFTMarketplace: React.FC = () => {
               {txHash && (
                 <div className="text-sm">
                   <p className="font-medium mb-1">Transaction Hash:</p>
-                  <code className="bg-muted p-2 rounded block overflow-x-auto">
+                  <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
                     {txHash}
-                  </code>
+                  </pre>
                 </div>
               )}
             </div>
           ) : listingSuccess ? (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
                 <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 <AlertTitle>Listing Successful!</AlertTitle>
@@ -1407,9 +1385,9 @@ const NFTMarketplace: React.FC = () => {
               {txHash && (
                 <div className="text-sm">
                   <p className="font-medium mb-1">Transaction Hash:</p>
-                  <code className="bg-muted p-2 rounded block overflow-x-auto">
+                  <pre className="bg-muted p-2 rounded block overflow-x-auto break-words">
                     {txHash}
-                  </code>
+                  </pre>
                 </div>
               )}
             </div>
@@ -1422,7 +1400,7 @@ const NFTMarketplace: React.FC = () => {
               <AlertDescription>{mintError || listingError}</AlertDescription>
             </Alert>
           ) : (
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
               {!selectedNft && (
                 <div className="flex flex-col items-center space-y-3">
                   <div className="rounded-lg overflow-hidden w-32 h-32 border">
