@@ -3,9 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract NFTMarketplace is ERC721, Ownable, IERC721Receiver {
+contract NFTMarketplace is ERC721, Ownable {
     uint256 private _tokenIdCounter;
 
     struct Listing {
@@ -26,16 +25,6 @@ contract NFTMarketplace is ERC721, Ownable, IERC721Receiver {
         _tokenIdCounter = 0;
     }
 
-    // Implement IERC721Receiver with unused parameters commented out and marked as pure
-    function onERC721Received(
-        address, // operator
-        address, // from
-        uint256, // tokenId
-        bytes calldata // data
-    ) external pure override returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
     function mintNFT(address to, string memory uri) external returns (uint256) {
         require(to != address(0), "Cannot mint to zero address");
         require(bytes(uri).length > 0, "URI cannot be empty");
@@ -53,10 +42,9 @@ contract NFTMarketplace is ERC721, Ownable, IERC721Receiver {
     function listItem(uint256 tokenId, uint256 price) external {
         require(price > 0, "Price must be greater than zero");
         require(ownerOf(tokenId) == msg.sender, "Only owner can list");
-        require(getApproved(tokenId) == address(this) || isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
+        require(getApproved(tokenId) == address(0), "NFT is already approved");
 
-        safeTransferFrom(msg.sender, address(this), tokenId);
-
+        approve(address(this), tokenId); // Approve marketplace to transfer on purchase
         listings[tokenId] = Listing({
             seller: msg.sender,
             price: price,
@@ -70,13 +58,14 @@ contract NFTMarketplace is ERC721, Ownable, IERC721Receiver {
         Listing memory listing = listings[tokenId];
         require(listing.active, "Item not listed for sale");
         require(msg.value >= listing.price, "Insufficient payment");
+        require(getApproved(tokenId) == address(this), "Marketplace not approved");
 
         listings[tokenId].active = false;
 
         (bool sent, ) = listing.seller.call{value: listing.price}("");
         require(sent, "Failed to send ETH to seller");
 
-        safeTransferFrom(address(this), msg.sender, tokenId);
+        _transfer(listing.seller, msg.sender, tokenId); // Transfer NFT to buyer
 
         if (msg.value > listing.price) {
             (bool refunded, ) = msg.sender.call{value: msg.value - listing.price}("");
@@ -92,7 +81,7 @@ contract NFTMarketplace is ERC721, Ownable, IERC721Receiver {
         require(listing.seller == msg.sender, "Only seller can cancel");
 
         listings[tokenId].active = false;
-        safeTransferFrom(address(this), msg.sender, tokenId);
+        _approve(address(0), tokenId, address(0)); // Revoke approval, no auth needed
 
         emit ListingCancelled(tokenId, msg.sender);
     }

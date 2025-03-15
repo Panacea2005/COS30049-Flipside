@@ -35,7 +35,7 @@ const ERC721_ABI = [
   "function ownerOf(uint256 tokenId) external view returns (address)",
 ];
 
-// Simple NFT Marketplace ABI
+// Updated Simple NFT Marketplace ABI (matches your original style)
 const MARKETPLACE_ABI = [
   "function mintNFT(address to, string memory uri) external returns (uint256)",
   "function listItem(uint256 tokenId, uint256 price) external",
@@ -48,7 +48,9 @@ const MARKETPLACE_ABI = [
   "function getApproved(uint256 tokenId) external view returns (address)",
   "event NFTMinted(uint256 indexed tokenId, address indexed to, string uri)",
   "event ItemListed(uint256 indexed tokenId, address indexed seller, uint256 price)",
-  // Add ERC721 errors for debugging
+  "event ItemBought(uint256 indexed tokenId, address indexed buyer, uint256 price)",
+  "event ListingCancelled(uint256 indexed tokenId, address indexed seller)",
+  // Add ERC721 errors for debugging (same as your original)
   "error ERC721InvalidOwner(address owner)",
   "error ERC721NonexistentToken(uint256 tokenId)",
   "error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner)",
@@ -58,7 +60,7 @@ const MARKETPLACE_ABI = [
 // Configure marketplace contract addresses
 export const MARKETPLACE_ADDRESSES = {
   mainnet: "0x00000000006c3852cbEf3e08E8dF289169EdE581", // OpenSea Seaport
-  sepolia: "0x816001d49e7e88e214da7fbb689e309e0c536476", // Testnet marketplace
+  sepolia: "0x1658d08c779aca7a272bc589881a44886c4c6748", // Testnet marketplace
 };
 
 // Define interfaces for NFT data
@@ -172,28 +174,16 @@ export const fetchUserNfts = async (
     }
 
     const provider = getProvider(network);
-    const marketplaceAddress =
-      MARKETPLACE_ADDRESSES[network as keyof typeof MARKETPLACE_ADDRESSES];
-    const marketplace = new Contract(
-      marketplaceAddress,
-      MARKETPLACE_ABI,
-      provider
-    );
+    const marketplaceAddress = MARKETPLACE_ADDRESSES[network as keyof typeof MARKETPLACE_ADDRESSES];
+    const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, provider);
 
-    // Fetch all NFTs owned by the address from Alchemy
-    const endpoint = `${
-      NETWORK_URLS[network as keyof typeof NETWORK_URLS]
-    }/getNFTs/?owner=${address}&contractAddresses[]=${marketplaceAddress}&withMetadata=true`;
+    const endpoint = `${NETWORK_URLS[network as keyof typeof NETWORK_URLS]}/getNFTs/?owner=${address}&contractAddresses[]=${marketplaceAddress}&withMetadata=true`;
     const response = await fetch(endpoint);
-    if (!response.ok) {
-      console.error(`Alchemy API error: ${response.statusText}`);
-      throw new Error(`Alchemy API error: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Alchemy API error: ${response.statusText}`);
 
     const data = await response.json();
-    console.log("Alchemy ownedNfts response:", data);
-
     let nfts: NftItem[] = [];
+
     if (data.ownedNfts && Array.isArray(data.ownedNfts)) {
       nfts = await Promise.all(
         data.ownedNfts.map(async (nft: any) => {
@@ -201,24 +191,18 @@ export const fetchUserNfts = async (
             const tokenId = BigInt(nft.id.tokenId).toString();
             const contractAddress = nft.contract.address;
 
-            if (
-              contractAddress.toLowerCase() !== marketplaceAddress.toLowerCase()
-            ) {
-              return null; // Skip non-marketplace NFTs
-            }
+            if (contractAddress.toLowerCase() !== marketplaceAddress.toLowerCase()) return null;
 
             const tokenURI = await marketplace.tokenURI(tokenId);
             const owner = await marketplace.ownerOf(tokenId);
-
             let price = "0";
             let isListed = false;
-            try {
-              const listing = await marketplace.getListing(tokenId);
-              isListed = listing.active;
-              price = formatEther(listing.price);
-            } catch (error) {
-              console.log(`NFT ${tokenId} not listed:`, error);
-            }
+
+            // Check actual listing status from the contract
+            const listing = await marketplace.getListing(tokenId);
+            isListed = listing.active;
+            price = isListed ? formatEther(listing.price) : "0";
+            console.log(`NFT ${tokenId} listing status:`, { isListed, price });
 
             const metadataUrl = normalizeIpfsUrl(tokenURI);
             let metadata;
@@ -226,10 +210,7 @@ export const fetchUserNfts = async (
               const metadataResponse = await fetch(metadataUrl);
               metadata = await metadataResponse.json();
             } catch (error) {
-              console.warn(
-                `Failed to fetch metadata for token ${tokenId}:`,
-                error
-              );
+              console.warn(`Failed to fetch metadata for token ${tokenId}:`, error);
               metadata = { name: `NFT #${tokenId}`, image: "" };
             }
             const imageUrl = normalizeIpfsUrl(metadata.image || "");
@@ -257,41 +238,9 @@ export const fetchUserNfts = async (
       );
     }
 
-    // Fallback: Check recent mints with a larger block range
-    const latestBlock = await provider.getBlockNumber();
-    const fromBlock = Math.max(0, latestBlock - 5000); // Increase block range
-    const recentTokenId = await checkRecentMints(
-      address,
-      marketplace,
-      fromBlock
-    );
-    if (recentTokenId && !nfts.some((nft) => nft?.tokenId === recentTokenId)) {
-      const tokenURI = await marketplace.tokenURI(recentTokenId);
-      const owner = await marketplace.ownerOf(recentTokenId);
-      const listing = await marketplace.getListing(recentTokenId);
-      const metadataUrl = normalizeIpfsUrl(tokenURI);
-      const metadataResponse = await fetch(metadataUrl);
-      const metadata = await metadataResponse.json();
-      const imageUrl = normalizeIpfsUrl(metadata.image || "");
-
-      nfts.push({
-        image: imageUrl,
-        creator: address,
-        tokenId: recentTokenId,
-        contractAddress: marketplaceAddress,
-        name: metadata.name || `NFT #${recentTokenId}`,
-        symbol: "NFT",
-        tokenURI,
-        metadata,
-        owner,
-        price: formatEther(listing.price),
-        isListed: listing.active,
-        imageUrl,
-        collection: null,
-      });
-    }
-
-    return nfts.filter(Boolean) as NftItem[];
+    const filteredNfts = nfts.filter(Boolean) as NftItem[];
+    console.log("Fetched user NFTs:", filteredNfts);
+    return filteredNfts;
   } catch (err) {
     console.error("Error fetching user NFTs:", err);
     return [];
@@ -377,90 +326,6 @@ async function fetchEventsInChunks(
   console.log(`Fetched ${events.length} events from ${fromBlock} to ${latestBlock}`);
   return events;
 }
-
-/**
- * Fetch NFTs listed on the marketplace
- */
-export const fetchListedNfts = async (
-  network: string = "mainnet",
-  limit: number = 20
-): Promise<NftItem[]> => {
-  try {
-    const provider = getProvider(network);
-    const marketplaceAddress = MARKETPLACE_ADDRESSES[network as keyof typeof MARKETPLACE_ADDRESSES];
-    const marketplace = new Contract(marketplaceAddress, MARKETPLACE_ABI, provider);
-
-    const latestBlock = await provider.getBlockNumber();
-    const fromBlock = network === "sepolia" ? 0 : Math.max(0, latestBlock - 10000);
-    const filter = marketplace.filters.ItemListed(null, null, null);
-    const events = await fetchEventsInChunks(
-      marketplace,
-      filter,
-      fromBlock,
-      "latest"
-    );
-
-    console.log("Listing events:", events);
-
-    const listedTokenIds = events
-      .map((event) => BigInt(event.args.tokenId).toString())
-      .slice(0, limit);
-
-    const nfts = await Promise.all(
-      listedTokenIds.map(async (tokenId) => {
-        try {
-          const listing = await marketplace.getListing(tokenId);
-          if (!listing.active) return null;
-
-          const tokenURI = await marketplace.tokenURI(tokenId);
-          const owner = await marketplace.ownerOf(tokenId); // Should be marketplaceAddress if listed
-          const metadataUrl = normalizeIpfsUrl(tokenURI);
-          const metadataResponse = await fetch(metadataUrl);
-          const metadata = await metadataResponse.json();
-          const imageUrl = normalizeIpfsUrl(metadata.image || "");
-
-          return {
-            creator: listing.seller, // Seller is the original owner
-            tokenId,
-            contractAddress: marketplaceAddress,
-            name: metadata.name || `NFT #${tokenId}`,
-            symbol: "MKT",
-            tokenURI,
-            metadata,
-            owner, // Should be marketplace contract
-            price: formatEther(listing.price),
-            isListed: true,
-            imageUrl,
-            collection: {
-              address: marketplaceAddress,
-              name: "NFT Marketplace Collection",
-              symbol: "MKT",
-              totalSupply: "0",
-              imageUrl: "",
-              description: "NFTs minted and listed via the marketplace",
-              itemCount: 0,
-              bannerUrl: "",
-              banner: undefined,
-              image: "",
-              nftCount: undefined,
-              id: marketplaceAddress,
-            },
-          };
-        } catch (error) {
-          console.error(`Error processing token ${tokenId}:`, error);
-          return null;
-        }
-      })
-    );
-
-    const validNfts = nfts.filter(Boolean) as NftItem[];
-    console.log("Fetched listed NFTs:", validNfts);
-    return validNfts;
-  } catch (err) {
-    console.error("Error fetching listed NFTs:", err);
-    return [];
-  }
-};
 
 /**
  * Fetch details for a specific NFT
@@ -579,7 +444,7 @@ export const fetchCollectionInfo = async (
     let collectionName = data.contractMetadata?.name || "Unknown Collection";
     if (
       contractAddress.toLowerCase() ===
-      "0x816001d49e7e88e214da7fbb689e309e0c536476".toLowerCase()
+      "0x1658d08c779aca7a272bc589881a44886c4c6748".toLowerCase()
     ) {
       collectionName = "NFT Marketplace Collection";
     }
@@ -638,7 +503,7 @@ export const fetchNftCollections = async (
             "0x6339e5e072086621540d0362c4e3cea0d643e114", // Opepen Edition
             "0x524cab2ec69124574082676e6f654a18df49a048", // Lil Pudgys
           ]
-        : ["0x816001d49e7e88e214da7fbb689e309e0c536476"];
+        : ["0x1658d08c779aca7a272bc589881a44886c4c6748"];
 
     // Pagination
     const startIndex = (pageNumber - 1) * pageSize;
@@ -687,7 +552,7 @@ export const fetchTotalCollectionsCount = async (
             "0x7Bd29408f11D2bFC23c34f18275bBf23bB716Bc7",
             "0x23581767a106ae21c074b2276D25e5C3e136a68b",
           ]
-        : ["0x816001d49e7e88e214da7fbb689e309e0c536476"];
+        : ["0x1658d08c779aca7a272bc589881a44886c4c6748"];
     return knownCollections.length;
   } catch (err) {
     console.error("Error fetching total collections count:", err);
@@ -706,65 +571,19 @@ export const listNftForSale = async (
   network: string
 ): Promise<boolean> => {
   try {
-    console.log("listNftForSale called", {
-      contractAddress,
-      tokenId,
-      price,
-      network,
-    });
-    if (!contractAddress || !tokenId || !price) {
-      throw new Error("Contract address, tokenId, and price are required");
-    }
-
-    const nftContract = getNftContract(contractAddress, network, signer);
-    const formattedTokenId = tokenId.startsWith("0x")
-      ? tokenId
-      : `0x${tokenId}`;
-    const owner = await nftContract.ownerOf(formattedTokenId);
-    const signerAddress = await signer.getAddress();
-
-    console.log("Checking ownership", { owner, signerAddress });
-    if (owner.toLowerCase() !== signerAddress.toLowerCase()) {
-      throw new Error("Only the owner can list this NFT");
-    }
+    console.log("listNftForSale called", { contractAddress, tokenId, price, network });
+    if (!contractAddress || !tokenId || !price) throw new Error("Missing required parameters");
 
     const marketplace = getMarketplaceContract(network, signer);
-    const marketplaceAddress =
-      MARKETPLACE_ADDRESSES[network as keyof typeof MARKETPLACE_ADDRESSES];
-    const approvedAddress = await nftContract.getApproved(formattedTokenId);
-    const isApprovedForAll = await nftContract.isApprovedForAll(
-      owner,
-      marketplaceAddress
-    );
+    const formattedTokenId = tokenId.startsWith("0x") ? tokenId : `0x${tokenId}`;
+    const owner = await marketplace.ownerOf(formattedTokenId);
+    const signerAddress = await signer.getAddress();
 
-    console.log("Checking approval", {
-      approvedAddress,
-      isApprovedForAll,
-      marketplaceAddress,
-    });
-    if (
-      approvedAddress.toLowerCase() !== marketplaceAddress.toLowerCase() &&
-      !isApprovedForAll
-    ) {
-      console.log("Approving marketplace to transfer NFT...");
-      const approveTx = await nftContract.approve(
-        marketplaceAddress,
-        formattedTokenId
-      );
-      await approveTx.wait();
-      console.log("Marketplace approved");
-    }
+    if (owner.toLowerCase() !== signerAddress.toLowerCase()) throw new Error("Only the owner can list this NFT");
 
     const priceInWei = parseEther(price);
-    console.log("Listing NFT...", { priceInWei });
-    const listTx = await marketplace.listItem(
-      contractAddress,
-      formattedTokenId,
-      priceInWei
-    );
-    console.log("Listing tx sent:", listTx.hash);
+    const listTx = await marketplace.listItem(formattedTokenId, priceInWei);
     await listTx.wait();
-    console.log("Listing confirmed");
 
     console.log("NFT listed successfully");
     return true;
@@ -777,51 +596,24 @@ export const listNftForSale = async (
 /**
  * Buy an NFT from the marketplace
  */
-/**
- * Buy an NFT from the marketplace
- */
 export const buyNft = async (
-  contractAddress: string,
-  tokenId: string,
+  tokenId: string, // Simplified to only need tokenId since contractAddress is marketplace
   signer: Signer,
   network: string = "mainnet"
 ): Promise<boolean> => {
   try {
-    if (!tokenId) {
-      throw new Error("Token ID is required");
-    }
+    if (!tokenId) throw new Error("Token ID is required");
 
     const marketplace = getMarketplaceContract(network, signer);
-    const marketplaceAddress = MARKETPLACE_ADDRESSES[network as keyof typeof MARKETPLACE_ADDRESSES];
+    const formattedTokenId = tokenId.startsWith("0x") ? tokenId : BigInt(tokenId).toString();
 
-    // Ensure tokenId is a decimal string, not hex
-    const formattedTokenId = tokenId.startsWith("0x")
-      ? BigInt(tokenId).toString()
-      : tokenId;
+    const listing = await marketplace.getListing(formattedTokenId);
+    if (!listing.active) throw new Error("This NFT is not listed for sale");
 
-    console.log(`Fetching listing for token ${formattedTokenId} on ${marketplaceAddress}`);
+    const buyTx = await marketplace.buyItem(formattedTokenId, { value: listing.price });
+    await buyTx.wait();
 
-    let listing;
-    try {
-      listing = await marketplace.getListing(formattedTokenId);
-      console.log("Listing fetched:", listing);
-    } catch (error) {
-      console.error("Error fetching listing:", error);
-      throw new Error("Failed to fetch listing data for this NFT.");
-    }
-
-    if (!listing.active) {
-      throw new Error("This NFT is not currently listed for sale");
-    }
-
-    console.log(`Buying NFT ${formattedTokenId} for ${formatEther(listing.price)} ETH`);
-    const buyTx = await marketplace.buyItem(formattedTokenId, {
-      value: listing.price,
-    });
-
-    const receipt = await buyTx.wait();
     console.log("NFT purchased successfully, tx hash:", buyTx.hash);
-
     return true;
   } catch (err) {
     console.error("Error buying NFT:", err);
@@ -1377,12 +1169,12 @@ export const mintNFT = async (
   try {
     const marketplace = getMarketplaceContract(network, signer);
     const signerAddress = await signer.getAddress();
-    const marketplaceAddress = MARKETPLACE_ADDRESSES[network as keyof typeof MARKETPLACE_ADDRESSES];
 
     const imageUrl = await uploadToPinata(image);
     const fullMetadata = { name: metadata.name, description: metadata.description, image: imageUrl, attributes: metadata.attributes || [] };
     const tokenURI = await uploadMetadataToPinata(fullMetadata);
 
+    console.log("Minting NFT for", signerAddress, "with URI:", tokenURI);
     const tx = await marketplace.mintNFT(signerAddress, tokenURI);
     const receipt = await tx.wait();
     const nftMintedEvent = receipt.logs.find(
@@ -1390,25 +1182,26 @@ export const mintNFT = async (
     );
     if (!nftMintedEvent) throw new Error("NFTMinted event not found");
     const tokenId = BigInt(nftMintedEvent.topics[1]).toString();
+    console.log("Minted NFT with tokenId:", tokenId);
 
     let listTxHash: string | undefined;
     if (listPrice && parseFloat(listPrice) > 0) {
       const priceInWei = parseEther(listPrice);
-
-      const approvedAddress = await marketplace.getApproved(tokenId);
-      if (approvedAddress.toLowerCase() !== marketplaceAddress.toLowerCase()) {
-        const approveTx = await marketplace.approve(marketplaceAddress, tokenId);
-        await approveTx.wait();
-      }
-
+      console.log("Listing NFT", tokenId, "for", listPrice, "ETH");
       const listTx = await marketplace.listItem(tokenId, priceInWei);
       const listReceipt = await listTx.wait();
       listTxHash = listTx.hash;
 
-      // Verify listing
+      // Log the receipt to verify ItemListed event
+      const itemListedEvent = listReceipt.logs.find(
+        (log: any) => log.topics[0] === ethers.id("ItemListed(uint256,address,uint256)")
+      );
+      console.log("ItemListed event from listTx:", itemListedEvent);
+
       const listing = await marketplace.getListing(tokenId);
+      console.log("Listing status after listItem:", listing);
       if (!listing.active) {
-        throw new Error("Failed to list NFT after minting");
+        throw new Error("Failed to list NFT after minting - listing not active");
       }
     }
 
@@ -1421,7 +1214,6 @@ export const mintNFT = async (
 
 export default {
   fetchUserNfts,
-  fetchListedNfts,
   fetchNftDetails,
   fetchCollectionInfo,
   fetchNftCollections,
@@ -1432,4 +1224,5 @@ export default {
   uploadToPinata,
   uploadMetadataToPinata,
   mintNFT,
+  checkRecentMints,
 };
