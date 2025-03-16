@@ -12,13 +12,6 @@ import {
   Area,
 } from "recharts";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   TrendingUp,
   TrendingDown,
   Activity,
@@ -63,25 +56,6 @@ interface CryptoBubble extends LeaderboardCoin {
   size: number;
 }
 
-interface CoinOption {
-  id: string;
-  name: string;
-  icon: string;
-}
-
-const COINS: CoinOption[] = [
-  { id: "bitcoin", name: "BTC", icon: "/bitcoin.svg" },
-  { id: "ethereum", name: "ETH", icon: "/eth.svg" },
-  { id: "dogecoin", name: "DOGE", icon: "/dogecoin.svg" },
-  { id: "litecoin", name: "LTC", icon: "/litecoin.svg" },
-  { id: "ripple", name: "XRP", icon: "/xrp.svg" },
-  { id: "cardano", name: "ADA", icon: "/cardano.svg" },
-  { id: "tether", name: "USDT", icon: "/usdt.svg" },
-  { id: "binancecoin", name: "BNB", icon: "/bnb.svg" },
-  { id: "solana", name: "SOL", icon: "/solana.svg" },
-  { id: "staked-ether", name: "STETH", icon: "/steth.svg" },
-];
-
 export const MarketDashboard: React.FC = () => {
   const [selectedCoin, setSelectedCoin] = useState("bitcoin");
   const [priceData, setPriceData] = useState<PriceData[]>([]);
@@ -90,12 +64,13 @@ export const MarketDashboard: React.FC = () => {
   const [selectedLeaderboardCoin, setSelectedLeaderboardCoin] =
     useState<LeaderboardCoin | null>(null);
 
-  const selectedCoinObj = COINS.find((coin) => coin.id === selectedCoin);
+  const [timeRange, setTimeRange] = useState("1D"); // Default to daily view
+  const timeRanges = ["1H", "4H", "1D", "1W", "1M", "3M", "ALL"];
 
-  // Fetch price data every 2 seconds for the selected coin
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
-    const fetchPrice = async () => {
+
+    const fetchInitialPrice = async () => {
       try {
         const res = await fetch(
           `https://api.coingecko.com/api/v3/simple/price?ids=${selectedCoin}&vs_currencies=usd`
@@ -110,32 +85,17 @@ export const MarketDashboard: React.FC = () => {
           });
           return;
         }
+
         const currentPrice = data[selectedCoin].usd;
 
-        // Generate random candlestick data for demo purposes
-        // In a real app, you would use actual OHLC data from the API
-        setPriceData((prev) => {
-          const prevPrice =
-            prev.length > 0 ? prev[prev.length - 1].close : currentPrice;
-          const variance = prevPrice * 0.005; // 0.5% variance for demo
-          const open = prevPrice;
-          const close = currentPrice;
-          const high = Math.max(open, close) + Math.random() * variance;
-          const low = Math.min(open, close) - Math.random() * variance;
+        // Generate historical data based on selected time range
+        const historicalData = generateHistoricalData(currentPrice, timeRange);
+        setPriceData(historicalData);
 
-          return [
-            ...prev.slice(-49),
-            {
-              time: Date.now(),
-              open,
-              high,
-              low,
-              close,
-            },
-          ];
-        });
+        // Setup interval for real-time updates
+        startRealTimeUpdates(currentPrice);
       } catch (error) {
-        console.error("Error fetching price:", error);
+        console.error("Error fetching initial price:", error);
         toast({
           title: "Price Fetch Error",
           description: "Failed to fetch coin price",
@@ -143,11 +103,82 @@ export const MarketDashboard: React.FC = () => {
         });
       }
     };
-    setPriceData([]);
-    fetchPrice();
-    interval = setInterval(fetchPrice, 2000);
-    return () => clearInterval(interval);
-  }, [selectedCoin]);
+
+    const startRealTimeUpdates = (initialPrice: number) => {
+      // Clear any existing interval
+      if (interval) clearInterval(interval);
+
+      // Set update frequency based on time range
+      const updateFrequency =
+        timeRange === "1H"
+          ? 1000 // 1 second
+          : timeRange === "4H"
+          ? 2000 // 2 seconds
+          : timeRange === "1D"
+          ? 3000 // 3 seconds
+          : 5000; // 5 seconds for longer timeframes
+
+      let currentPrice = initialPrice;
+
+      interval = setInterval(() => {
+        // Simulate price movement
+        const volatilityFactor = 0.0005; // 0.05% base volatility for real-time updates
+        const priceChange =
+          currentPrice * volatilityFactor * (Math.random() * 2 - 1);
+        currentPrice = currentPrice + priceChange;
+
+        // Add new data point
+        setPriceData((prev) => {
+          const variance = currentPrice * 0.0002;
+          const newPoint = {
+            time: Date.now(),
+            open: prev.length
+              ? prev[prev.length - 1].close
+              : currentPrice - variance,
+            close: currentPrice,
+            high: currentPrice + Math.random() * variance,
+            low: currentPrice - Math.random() * variance,
+          };
+
+          // Remove oldest data point if we're at the maximum for this timeframe
+          let maxPoints: number;
+          switch (timeRange) {
+            case "1H":
+              maxPoints = 60;
+              break;
+            case "4H":
+              maxPoints = 48;
+              break;
+            case "1D":
+              maxPoints = 48;
+              break;
+            case "1W":
+              maxPoints = 42;
+              break;
+            case "1M":
+              maxPoints = 30;
+              break;
+            case "3M":
+              maxPoints = 45;
+              break;
+            case "ALL":
+              maxPoints = 52;
+              break;
+            default:
+              maxPoints = 60;
+          }
+
+          return [...prev.slice(-maxPoints + 1), newPoint];
+        });
+      }, updateFrequency);
+    };
+
+    fetchInitialPrice();
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [selectedCoin, timeRange]);
 
   // Fetch leaderboard data every 60 seconds
   useEffect(() => {
@@ -211,13 +242,144 @@ export const MarketDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Format time for the chart's XAxis
-  const formatTime = (time: number) =>
-    new Date(time).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+  // This function generates synthetic historical data based on the selected time range
+  const generateHistoricalData = (currentPrice: number, range: string) => {
+    const now = Date.now();
+    let dataPoints: PriceData[] = [];
+    let timespan: number;
+    let intervals: number;
+
+    // Set timespan and number of intervals based on range
+    switch (range) {
+      case "1H":
+        timespan = 60 * 60 * 1000; // 1 hour in ms
+        intervals = 60; // One data point per minute
+        break;
+      case "4H":
+        timespan = 4 * 60 * 60 * 1000; // 4 hours in ms
+        intervals = 48; // One data point per 5 minutes
+        break;
+      case "1D":
+        timespan = 24 * 60 * 60 * 1000; // 1 day in ms
+        intervals = 48; // One data point per 30 minutes
+        break;
+      case "1W":
+        timespan = 7 * 24 * 60 * 60 * 1000; // 1 week in ms
+        intervals = 42; // One data point per 4 hours
+        break;
+      case "1M":
+        timespan = 30 * 24 * 60 * 60 * 1000; // 1 month in ms
+        intervals = 30; // One data point per day
+        break;
+      case "3M":
+        timespan = 90 * 24 * 60 * 60 * 1000; // 3 months in ms
+        intervals = 45; // One data point per 2 days
+        break;
+      case "ALL":
+        timespan = 365 * 24 * 60 * 60 * 1000; // 1 year in ms
+        intervals = 52; // One data point per week
+        break;
+      default:
+        timespan = 60 * 60 * 1000; // Default to 1 hour
+        intervals = 60;
+    }
+
+    // Starting price (slightly randomized)
+    let price = currentPrice * (1 + (Math.random() * 0.1 - 0.05)); // ±5% variation
+
+    // Generate data points from past to present
+    for (let i = 0; i < intervals; i++) {
+      // More realistic price movements with some trend continuity
+      const trend = Math.random() > 0.5 ? 1 : -1;
+      const volatility = currentPrice * 0.005; // 0.5% base volatility
+
+      // Scale volatility based on timeframe (longer timeframes = more potential price change)
+      const timeScaleFactor =
+        range === "1H"
+          ? 1
+          : range === "4H"
+          ? 1.5
+          : range === "1D"
+          ? 2
+          : range === "1W"
+          ? 3
+          : range === "1M"
+          ? 4
+          : range === "3M"
+          ? 5
+          : 6;
+
+      // Previous price affects next price (trend continuity)
+      const prevTrend =
+        i > 0 ? (price > dataPoints[i - 1].close ? 0.6 : -0.6) : 0;
+      price =
+        price +
+        (trend + prevTrend) * volatility * timeScaleFactor * Math.random();
+
+      // Add some randomness to prevent too smooth curves
+      const variance = volatility * 0.5;
+
+      const timestamp = now - timespan + (i / intervals) * timespan;
+      dataPoints.push({
+        time: timestamp,
+        open: price - Math.random() * variance,
+        close: price,
+        high: price + Math.random() * variance,
+        low: price - Math.random() * variance,
+      });
+    }
+
+    return dataPoints;
+  };
+
+  const formatTime = (time: number) => {
+    const date = new Date(time);
+
+    switch (timeRange) {
+      case "1H":
+        return date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      case "4H":
+        return date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      case "1D":
+        return date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      case "1W":
+        return `${date.toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+        })}`;
+      case "1M":
+        return date.toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      case "3M":
+        return date.toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+      case "ALL":
+        return date.toLocaleDateString([], {
+          month: "short",
+          year: "numeric",
+        });
+      default:
+        return date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+    }
+  };
 
   // Compute sub-board data
   const topUptrend = [...leaderboardData]
@@ -269,34 +431,6 @@ export const MarketDashboard: React.FC = () => {
         <h1 className="text-3xl font-semibold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-green-600">
           Crypto Market Dashboard
         </h1>
-        <Select value={selectedCoin} onValueChange={setSelectedCoin}>
-          <SelectTrigger className="w-full md:w-64 bg-white bg-opacity-90 backdrop-blur-sm border border-gray-200 shadow-sm text-gray-800 hover:bg-gray-100 transition-all">
-            <SelectValue>
-              <div className="flex items-center gap-2">
-                {selectedCoinObj && (
-                  <img
-                    src={selectedCoinObj.icon}
-                    alt={selectedCoinObj.name}
-                    className="w-4 h-4"
-                  />
-                )}
-                <span>
-                  {selectedCoinObj ? selectedCoinObj.name : "Select a coin"}
-                </span>
-              </div>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {COINS.map((coin) => (
-              <SelectItem key={coin.id} value={coin.id}>
-                <div className="flex items-center gap-2">
-                  <img src={coin.icon} alt={coin.name} className="w-4 h-4" />
-                  <span>{coin.name}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Global Market Information - Moved to top */}
@@ -366,83 +500,116 @@ export const MarketDashboard: React.FC = () => {
             {selectedCoin.charAt(0).toUpperCase() + selectedCoin.slice(1)} Price
             Chart (USD)
           </h2>
-          <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full">
-            Updated in real-time
+          <div className="flex items-center gap-1">
+            {/* Time range selector */}
+            <div className="bg-gray-100 rounded-lg p-1 flex">
+              {timeRanges.map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    timeRange === range
+                      ? "bg-blue-500 text-white"
+                      : "hover:bg-gray-200 text-gray-600"
+                  }`}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
+            <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full ml-2">
+              Updated in real-time
+            </div>
           </div>
         </div>
         <div className="w-full h-72 bg-gray-50 rounded-lg p-2">
           <ResponsiveContainer>
-            <ComposedChart data={priceData}>
+            <ComposedChart
+              data={priceData}
+              margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+            >
               <defs>
-                <linearGradient id="colorClose" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0066ff" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#0066ff" stopOpacity={0} />
-                </linearGradient>
+                <filter id="shadow" height="200%">
+                  <feDropShadow
+                    dx="0"
+                    dy="2"
+                    stdDeviation="2"
+                    floodColor="#3b82f6"
+                    floodOpacity="0.3"
+                  />
+                </filter>
               </defs>
+
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="#e0e0e0"
-                opacity={0.5}
+                opacity={0.3}
+                vertical={false}
               />
+
               <XAxis
                 dataKey="time"
                 tickFormatter={formatTime}
-                stroke="#555"
-                tick={{ fontSize: 12 }}
+                stroke="#94a3b8"
+                tick={{ fontSize: 12, fill: "#64748b" }}
                 tickCount={6}
+                axisLine={{ stroke: "#e2e8f0" }}
+                tickLine={{ stroke: "#e2e8f0" }}
+                padding={{ left: 10, right: 10 }}
               />
+
               <YAxis
                 domain={["auto", "auto"]}
-                stroke="#555"
-                tick={{ fontSize: 12 }}
+                stroke="#94a3b8"
+                tick={{ fontSize: 12, fill: "#64748b" }}
                 tickCount={6}
+                tickFormatter={(value) => `$${value.toLocaleString()}`}
+                axisLine={{ stroke: "#e2e8f0" }}
+                tickLine={{ stroke: "#e2e8f0" }}
+                width={70}
               />
+
               <Tooltip
                 labelFormatter={formatTime}
                 contentStyle={{
-                  backgroundColor: "rgba(255, 255, 255, 0.95)",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                  border: "none",
+                  backgroundColor: "rgba(255, 255, 255, 0.98)",
+                  borderRadius: "12px",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                  border: "1px solid rgba(226, 232, 240, 0.8)",
+                  padding: "12px",
                 }}
-                itemStyle={{ color: "#333" }}
+                itemStyle={{ color: "#334155", fontWeight: "500" }}
                 formatter={(value: any) =>
-                  value != null ? ["$" + value.toFixed(2)] : "N/A"
+                  value != null
+                    ? [`$${value.toFixed(2).toLocaleString()}`]
+                    : "N/A"
                 }
                 cursor={{
-                  stroke: "#ccc",
+                  stroke: "#cbd5e1",
                   strokeWidth: 1,
                   strokeDasharray: "5 5",
                 }}
                 active={true}
               />
 
-              {/* Area under the line with gradient effect */}
-              <Area
-                type="monotone"
-                dataKey="close"
-                stroke="none"
-                fillOpacity={1}
-                fill="url(#colorClose)"
-                isAnimationActive={true}
-                animationDuration={500}
-              />
-
               {/* Line chart for close price with enhanced styling */}
               <Line
                 type="monotone"
                 dataKey="close"
-                stroke="#0066ff"
-                strokeWidth={2.5}
+                stroke="#3b82f6"
+                strokeWidth={3}
                 dot={false}
                 activeDot={{
-                  r: 6,
-                  stroke: "#0066ff",
+                  r: 7,
+                  stroke: "#3b82f6",
                   strokeWidth: 2,
                   fill: "white",
+                  filter: "url(#shadow)",
                 }}
                 isAnimationActive={true}
-                animationDuration={800}
+                animationDuration={1200}
+                animationEasing="ease-in-out"
+                style={{ filter: "url(#shadow)" }}
               />
             </ComposedChart>
           </ResponsiveContainer>
