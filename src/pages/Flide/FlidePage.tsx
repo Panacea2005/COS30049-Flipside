@@ -1259,10 +1259,9 @@ export const FlidePage = () => {
 
   const handleSend = async () => {
     if ((!input.trim() && !uploadedFile) || isLoading) return;
-
-    // Hide initial message immediately when a message is sent
+  
     if (showInitialMessage) setShowInitialMessage(false);
-
+  
     try {
       setIsLoading(true);
       const userMessage: Message = {
@@ -1273,20 +1272,17 @@ export const FlidePage = () => {
       setInput("");
       setUploadedFile(null);
 
-      // Immediately add placeholder for bot response
       setMessages((prev) => [...prev, { role: "assistant", content: "..." }]);
 
       let codeContent = uploadedFileContent || input;
-      // Check if the message contains contract code (Move or Solidity)
       const contractLang = chatService.detectContractLanguage(codeContent);
+      let displayedResponse = "";
       if (contractLang) {
-        // Perform contract analysis without the word-by-word animation.
         const analysis = await contractAnalyzer.analyzeContract(
           codeContent,
           selectedModel,
           contractLang
         );
-        // Replace the placeholder message with the analysis result.
         setMessages((prev) => [
           ...prev.slice(0, -1),
           { role: "assistant", content: "", analysisResult: analysis },
@@ -1297,8 +1293,6 @@ export const FlidePage = () => {
           [userMessage],
           selectedModel
         );
-        // Gradually display the bot's response
-        let displayedResponse = "";
         const words = response.split(" ");
         for (let i = 0; i < words.length; i++) {
           displayedResponse += words[i] + " ";
@@ -1308,12 +1302,36 @@ export const FlidePage = () => {
               .concat({ role: "assistant", content: displayedResponse })
           );
           if (scrollAreaRef.current) {
-            scrollAreaRef.current.scrollTop =
-              scrollAreaRef.current.scrollHeight;
+            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
           }
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
       }
+
+      // Save the chat after the message exchange
+      const updatedMessages: Message[] = [...messages, userMessage, { role: "assistant", content: displayedResponse || "" } as Message];
+      if (currentChatId === null) {
+        // New chat
+        const newChat: ChatHistory = {
+          id: Date.now(), // Unique ID based on timestamp
+          title: chatStore.generateChatTitle(updatedMessages),
+          date: new Date().toLocaleDateString(),
+          messages: updatedMessages,
+        };
+        chatStore.saveChat(newChat);
+        setCurrentChatId(newChat.id);
+      } else {
+        // Update existing chat
+        chatStore.updateChat(currentChatId, updatedMessages);
+      }
+
+      // Refresh chat history in the sidebar
+      const history = chatStore.getChatHistory().map((chat) => ({
+        ...chat,
+        title: chatStore.generateChatTitle(chat.messages),
+      }));
+      setChatHistory(history);
+
     } catch (error) {
       console.error("Error in handleSend:", error);
       toast({
