@@ -9,7 +9,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Area,
 } from "recharts";
 import {
   TrendingUp,

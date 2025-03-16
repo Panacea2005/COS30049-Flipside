@@ -6,7 +6,7 @@ const LINKS = {
   AI: [
     { name: 'Flide', url: '/flide' }
   ],
-  Data: [
+  Studio: [
     { name: 'Trade', url: '/studio?tab=trade' },
     { name: 'Market', url: '/studio?tab=market' },
     { name: 'Overview', url: '/studio?tab=overview' },
@@ -17,7 +17,7 @@ const LINKS = {
     { name: 'Exchange', url: '/exchange' },
     { name: 'NFTs', url: '/nfts' }
   ],
-  Offering: [
+  Explore: [
     { name: 'For Chains', url: '/for-chains' },
     { name: 'For Analysts', url: '/for-analysts' },
     { name: 'For Explorers', url: '/for-explorers' },
